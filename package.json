@@ -1,0 +1,41 @@
+{
+  "name": "clipgenius",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.23.0",
+  "engines": {
+    "node": ">=24.0.0",
+    "pnpm": ">=11.0.0"
+  },
+  "scripts": {
+    "build": "corepack pnpm -r --workspace-concurrency=2 --if-present build",
+    "build:packages": "corepack pnpm -r --filter \"{packages/*}\" --workspace-concurrency=2 --if-present build",
+    "build:turbo": "turbo run build",
+    "dev": "corepack pnpm build:packages && corepack pnpm -r --parallel --stream --if-present dev",
+    "dev:turbo": "turbo run dev --parallel",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "corepack pnpm build:packages && corepack pnpm -r --workspace-concurrency=2 --if-present lint",
+    "lint:turbo": "turbo run lint",
+    "test": "corepack pnpm build:packages && corepack pnpm -r --workspace-concurrency=2 --if-present test",
+    "test:turbo": "turbo run test",
+    "typecheck": "corepack pnpm build:packages && corepack pnpm -r --workspace-concurrency=2 --if-present typecheck",
+    "typecheck:turbo": "turbo run typecheck",
+    "validate": "corepack pnpm format:check && corepack pnpm lint && corepack pnpm typecheck && corepack pnpm test && corepack pnpm build",
+    "db:generate": "corepack pnpm --filter @clipgenius/database generate",
+    "services:up": "docker compose -f infrastructure/compose.yaml up -d",
+    "services:down": "docker compose -f infrastructure/compose.yaml down"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@types/node": "^26.3.0",
+    "eslint": "^9.39.5",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^16.4.0",
+    "prettier": "^3.9.6",
+    "turbo": "^2.10.11",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.68.0"
+  }
+}

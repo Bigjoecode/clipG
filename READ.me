@@ -1,0 +1,2566 @@
+Yesterday 2:48 AM
+I'm building ClipGenius where when I upload a raw video.. And then add a prompt. It edits the video add transcript and an image where needed—full editing based on the prompt. 
+
+Then afterwards it cuts it into clips based on the platform to be published — YouTube, Facebook, Instagram, TikTok 
+
+So there will be different subscriptions. 
+
+20$ a month etc and their different features 
+
+
+Let's discuss this project 
+
+Absolutely. ClipGenius is much bigger than an “AI clip cutter.” What you're describing is closer to an AI video post-production + content repurposing platform.
+
+The important part is that we should architect it around the user's intent/prompt, rather than around a fixed list of editing buttons.
+
+The core ClipGenius concept
+
+The workflow becomes:
+
+Raw Video → User Prompt → AI understands the content → AI edits → AI creates platform-specific content → Publish
+
+For example, a user uploads a 45-minute sermon and says:
+
+“Turn this into engaging Christian content. Remove pauses and repetitions, add dynamic captions, emphasize powerful statements, use relevant images/B-roll where appropriate, and make the clips suitable for Instagram, TikTok and YouTube Shorts.”
+
+ClipGenius should ideally handle the whole pipeline.
+
+7
+1. I would structure ClipGenius into 5 engines
+Engine 1 — Content Understanding
+
+This is the brain.
+
+When the video is uploaded, ClipGenius should first:
+
+Transcribe the entire video
+Identify speakers
+Detect topics
+Detect key statements
+Detect emotional/high-energy moments
+Identify questions and answers
+Detect stories
+Detect calls-to-action
+Detect silence/pauses
+Detect repetition
+Detect potentially viral moments
+Analyze visual scenes
+Understand the user's prompt
+
+So instead of blindly cutting every 30 seconds, ClipGenius understands:
+
+“What is actually happening in this video?”
+
+That becomes your competitive advantage.
+
+2. AI Editing Engine
+
+Then the AI creates an Edit Decision List (EDL).
+
+For example:
+
+00:00–00:07 → Remove intro silence
+00:07–00:19 → Keep
+00:19–00:24 → Remove repetition
+00:24–01:15 → Keep
+01:15–01:21 → Add punch-in
+01:21–01:30 → Add B-roll
+01:30–01:34 → Emphasize phrase
+
+The user shouldn't necessarily need to understand any of this.
+
+They just say:
+
+“Make it fast-paced and engaging.”
+
+ClipGenius translates that into editing instructions.
+
+3. Transcript + Dynamic Captions
+
+This should be a major feature, not an afterthought.
+
+Different caption styles could eventually exist:
+
+Clean
+Bold
+Viral
+Podcast
+Cinematic
+Minimal
+MrBeast-style
+Karaoke
+Highlight words
+Speaker-based
+
+And AI determines what words deserve emphasis.
+
+For example:
+
+YOU DON'T NEED MORE MONEY.
+
+YOU NEED A BETTER SYSTEM.
+
+Instead of:
+
+You don't need more money you need a better system.
+
+That makes a massive difference for short-form content.
+
+4. AI Visual Layer
+
+This is where your idea gets particularly interesting.
+
+The prompt can instruct ClipGenius:
+
+“Add relevant visuals wherever the speaker discusses something that would benefit from visual explanation.”
+
+The system can determine:
+
+Speaker says:
+“Artificial intelligence is transforming healthcare.”
+
+ClipGenius could insert:
+
+AI/medical B-roll
+Relevant stock footage
+Generated image
+Screenshot
+Animated graphic
+Text overlay
+
+And importantly, the user shouldn't have to manually search for every asset.
+
+Eventually you could have:
+
+AI Visual Modes
+
+Stock
+→ Search licensed stock footage/images.
+
+AI Generated
+→ Generate visuals.
+
+Web
+→ Find relevant permitted visual assets.
+
+Screenshot
+→ Capture relevant portions of provided material.
+
+No Visuals
+→ Keep original footage.
+
+5. Repurposing Engine
+
+This is where I think your subscription product becomes very compelling.
+
+After creating the master edit:
+
+YouTube
+
+ClipGenius could produce:
+
+Full video
+YouTube Shorts
+Title suggestions
+Description
+Chapters
+Thumbnail concept
+Tags
+SEO suggestions
+Instagram
+
+Produce:
+
+Reels
+9:16 formatting
+Instagram caption
+Hashtags
+Cover frame
+TikTok
+
+Produce:
+
+Short-form clips
+Hook optimization
+Captions
+Description
+Hashtags
+Facebook
+
+Produce:
+
+Reels
+Feed video
+Caption
+Suggested title
+
+So one upload becomes:
+
+1 video → 10–30 pieces of content.
+
+That's the product story.
+
+The really powerful feature: “Content Campaign”
+
+I would actually make this a major concept inside ClipGenius.
+
+Instead of:
+
+Create Clips
+
+You have:
+
+Create Content Campaign
+
+User uploads one video.
+
+Then:
+
+“Turn this video into 30 days of social content.”
+
+ClipGenius could generate:
+
+Day 1
+
+Reel
+TikTok
+YouTube Short
+
+Day 2
+
+Reel
+TikTok
+
+Day 3
+
+Quote video
+
+Day 4
+
+Educational clip
+
+etc.
+
+This moves ClipGenius from a video editing tool into a content marketing engine.
+
+Now let's talk subscriptions
+
+I wouldn't simply price based on "features."
+
+I'd price around AI processing capacity + outputs + automation.
+
+Something like:
+
+Plan	Price	Positioning
+Free	$0	Try ClipGenius
+Creator	$19/mo	Individual creators
+Pro	$49/mo	Serious creators
+Business	$99/mo	Businesses/teams
+Agency	$199+/mo	Agencies
+Enterprise	Custom	Large organizations
+
+But there's another important concept:
+
+Credits
+
+AI video processing is expensive.
+
+You don't want someone paying $20 and processing 500 hours of video.
+
+So internally you could have:
+
+1 processing credit = X minutes of source video
+
+For example:
+
+Creator:
+
+100 processing minutes/month
+
+Pro:
+
+500 minutes/month
+
+Business:
+
+1,500 minutes/month
+
+Agency:
+
+5,000+ minutes/month
+
+Then advanced operations can consume additional credits.
+
+But don't make the UI feel like a credit marketplace
+
+That's important.
+
+The user shouldn't constantly see:
+
+“This operation costs 7.43 credits.”
+
+Instead:
+
+Creator
+
+82 / 100 minutes remaining
+
+Simple.
+
+Your $20 plan could be VERY attractive
+
+For example:
+
+ClipGenius Creator
+
+$19/month
+
+✓ 100 minutes AI video processing
+✓ AI editing
+✓ Automatic transcription
+✓ Dynamic captions
+✓ AI clip generation
+✓ YouTube Shorts
+✓ Instagram Reels
+✓ TikTok clips
+✓ Facebook Reels
+✓ AI titles & captions
+✓ AI hooks
+✓ 1080p export
+✓ ClipGenius watermark removed
+
+Then:
+
+ClipGenius Pro
+
+$49/month
+
+Everything in Creator +
+
+✓ 500 processing minutes
+✓ Advanced AI editing
+✓ AI B-roll
+✓ AI-generated images
+✓ Brand kits
+✓ Custom caption styles
+✓ Batch processing
+✓ 4K export
+✓ Multiple social accounts
+✓ Content campaigns
+✓ Scheduling/publishing
+
+And then the killer feature
+“Edit with AI”
+
+Instead of giving users 50 buttons:
+
+Trim
+Split
+Crop
+Captions
+B-roll
+Zoom
+Transitions
+Effects...
+
+You give them:
+
+Tell ClipGenius what you want.
+
+Prompt:
+
+“Make this feel like a high-energy motivational video. Remove dead space, emphasize the strongest statements, add cinematic B-roll, use bold captions, zoom in occasionally, and keep the video under 60 seconds.”
+
+Generate Edit
+
+Then ClipGenius creates the edit.
+
+The user can then say:
+
+“Make the captions bigger.”
+
+“Remove the background music.”
+
+“Make it more dramatic.”
+
+“Use fewer B-roll clips.”
+
+“Make this suitable for LinkedIn.”
+
+That becomes an AI video editor conversation.
+
+That's much more interesting than another OpusClip clone.
+
+I would also separate two products inside the platform
+ClipGenius Studio
+
+Create/edit the video.
+
+Raw footage → finished master video.
+
+ClipGenius Repurpose
+
+Turn finished content into platform-specific content.
+
+Master video → YouTube + Instagram + TikTok + Facebook + LinkedIn etc.
+
+And eventually:
+
+ClipGenius Autopilot
+
+Upload once.
+
+ClipGenius:
+
+Edit → Clip → Caption → Schedule → Publish → Analyze
+
+That's the long-term SaaS.
+
+The architecture is also very interesting
+
+Given your stack, I wouldn't build the actual video-processing engine entirely inside Next.js/Node.
+
+I'd separate it.
+
+Frontend
+
+Next.js + React + Tailwind
+
+Backend/API
+
+NestJS
+
+Database
+
+PostgreSQL + Prisma
+
+Authentication
+
+Supabase Auth / Clerk
+
+Storage
+
+Cloudflare R2 / AWS S3
+
+Video processing
+
+FFmpeg
+
+AI transcription
+
+Whisper / OpenAI transcription
+
+AI reasoning
+
+OpenAI / Anthropic
+
+Queue
+
+Redis + BullMQ
+
+Workers
+
+Dedicated video-processing workers.
+
+CDN
+
+Cloudflare.
+
+Payments
+
+Stripe + Paystack
+
+This is important because video processing is asynchronous.
+
+You don't want:
+
+Browser
+   ↓
+API
+   ↓
+FFmpeg
+   ↓
+wait 15 minutes
+
+Instead:
+
+UPLOAD
+   ↓
+OBJECT STORAGE
+   ↓
+JOB QUEUE
+   ↓
+AI ANALYSIS
+   ↓
+TRANSCRIPTION
+   ↓
+CONTENT ANALYSIS
+   ↓
+EDIT PLAN
+   ↓
+VIDEO WORKER
+   ↓
+RENDER
+   ↓
+STORAGE
+   ↓
+USER NOTIFICATION
+And I see an even bigger opportunity for you
+
+You already have experience around church/media content, WordPress, AI automation and content growth.
+
+So don't build ClipGenius initially for "everyone."
+
+I'd seriously consider starting with:
+
+Creators + Podcasters + Churches + Coaches + Businesses
+
+Because these people constantly have:
+
+long-form video → short-form content
+
+And churches are particularly interesting:
+
+Sunday sermon → 15 clips → captions → reels → shorts → TikToks → Facebook → quote graphics.
+
+That could become a killer vertical for you.
+
+One thing I would NOT do
+
+Don't try to build:
+
+“OpusClip + CapCut + Canva + Buffer + Descript”
+
+on day one.
+
+That's how the project becomes enormous.
+
+I'd make V1 brutally focused:
+
+Upload → Prompt → AI Edit → Generate Clips → Export
+
+Everything else comes later.
+
+And I think we should design ClipGenius around three layers:
+
+Layer 1 — AI Editor
+Turns raw footage into a polished video.
+
+Layer 2 — AI Repurposer
+Turns that video into platform-specific content.
+
+Layer 3 — AI Content Agent
+Turns one video into an entire content campaign and eventually publishes it automatically.
+
+That third layer is where I think the real SaaS moat and recurring revenue opportunity is.
+
+If we build this properly, ClipGenius shouldn't be positioned as “an AI video editor.” It should be positioned as an AI Content Production Engine.
+
+Edit
+
+Yes — this research is extremely valuable, and I'm actually glad you found these before we start coding.
+
+I went through Reela, Fawna, M Studio, and Pixo.
+
+And my conclusion is actually good news:
+
+We should NOT pivot ClipGenius.
+
+But we should sharpen it significantly.
+
+These companies validate the market, expose where the competition is going, and help us define exactly where ClipGenius should not compete.
+
+1. First: the competitive landscape has become clearer
+
+I would now divide the market into roughly four categories:
+
+Category	Examples	Core job
+AI video generation	Fawna, Pixo, M Studio	Idea/script → generated video
+AI video production	Reela	Idea/assets → finished video
+AI clipping/repurposing	OpusClip	Long video → short clips
+AI content production	ClipGenius	Raw content → edited + repurposed + campaign
+
+And there is a very important distinction.
+
+Fawna
+
+Fawna is heavily focused on script/idea → storyboard → AI footage → voice → sound → timeline. It combines multiple frontier models under one workspace.
+
+M Studio
+
+M Studio is also pushing script → storyboard → image/video generation → voice → sound → final cut, with a real timeline and character consistency. It explicitly targets filmmakers, agencies, creators and social content.
+
+Pixo
+
+Pixo positions itself as an AI video agent from script to screen, with agents for research, scripting, editing and revision, plus collaboration and series creation.
+
+Reela
+
+This is the one I would watch most closely.
+
+Because Reela actually overlaps with our idea.
+
+It has a Footage Remix workflow where users upload footage and prompt Reela to create multiple cuts, with different angles/look/hooks, and it can retain the original audio or replace it.
+
+It also explicitly says:
+
+one upload → many videos
+
+and supports AI B-roll, captions, voiceover, music, aspect ratios and editing.
+
+So Reela is our closest competitive reference.
+
+2. But here's the opportunity I see
+
+All four companies are increasingly focused on:
+
+“How can AI make the video?”
+
+ClipGenius should focus on:
+
+“How can AI turn the content you already have into a complete content operation?”
+
+That's different.
+
+Consider these two users.
+
+User A
+
+“I have an idea for a video. Make the video for me.”
+
+That's Fawna/Pixo/M Studio/Reela territory.
+
+User B
+
+“I recorded a 90-minute podcast. I have a 60-minute sermon. I have a webinar. I have an interview. I already have the footage. Turn this into an entire month of content.”
+
+That's ClipGenius.
+
+And I think that is a fantastic position.
+
+3. Reela changes one thing in our strategy
+
+Before seeing Reela, I would have said:
+
+"Prompt-based raw video editing is our big differentiator."
+
+I don't think that's enough anymore.
+
+Reela already has prompt-based remixing.
+
+So we need to move one level higher.
+
+Our differentiation becomes:
+Content Intelligence + Repurposing + Campaign Generation + Platform Optimization
+
+The editing is the engine.
+
+The content operation is the product.
+
+4. Here's the new ClipGenius positioning I'd lock
+ClipGenius
+Your AI Content Production Team
+
+Turn one raw video into polished, platform-optimized content — automatically.
+
+And our supporting statement:
+
+Upload. Direct. Create. Publish.
+
+Or:
+
+One Video. An Entire Content Campaign.
+
+I still really like that tagline.
+
+5. Here's where ClipGenius beats the conceptual workflow of these products
+
+Imagine:
+
+You upload:
+
+“Pastor Sam Sunday Sermon.mp4”
+
+Length:
+
+1h 18m
+
+You tell ClipGenius:
+
+“Create powerful Christian content for Instagram, TikTok, YouTube Shorts and Facebook. Focus on revelation, practical teaching, powerful statements and emotional moments. Keep clips between 30–90 seconds. Use bold captions and relevant visuals. Create enough content for the next 14 days.”
+
+Reela can remix footage.
+
+Fawna can generate video.
+
+Pixo can create video.
+
+M Studio can create video.
+
+But our intended output is:
+
+14-Day Content Campaign
+18 short videos
+6 quote videos
+4 educational clips
+18 platform versions
+18 hooks
+18 captions
+18 titles
+14 publishing slots
+
+And eventually:
+
+Schedule everything.
+
+That is a different product.
+
+6. This gives us a much better architecture
+
+Previously we thought:
+
+RAW VIDEO
+ ↓
+AI EDITOR
+ ↓
+CLIPS
+
+Now I want:
+
+                    ┌────────────────────┐
+                    │   RAW CONTENT      │
+                    └─────────┬──────────┘
+                              ↓
+                    ┌────────────────────┐
+                    │ CONTENT INTELLIGENCE│
+                    └─────────┬──────────┘
+                              ↓
+                    ┌────────────────────┐
+                    │ CONTENT OPPORTUNITY│
+                    │       GRAPH        │
+                    └─────────┬──────────┘
+                              ↓
+                    ┌────────────────────┐
+                    │ CREATIVE DIRECTOR  │
+                    └─────────┬──────────┘
+                              ↓
+                    ┌────────────────────┐
+                    │    AI EDITOR       │
+                    └─────────┬──────────┘
+                              ↓
+                    ┌────────────────────┐
+                    │ REPURPOSING ENGINE │
+                    └─────────┬──────────┘
+                              ↓
+                    ┌────────────────────┐
+                    │ CAMPAIGN GENERATOR │
+                    └─────────┬──────────┘
+                              ↓
+                    ┌────────────────────┐
+                    │ PUBLISHING ENGINE  │
+                    └─────────┬──────────┘
+                              ↓
+                    ┌────────────────────┐
+                    │ PERFORMANCE DATA   │
+                    └─────────┬──────────┘
+                              ↓
+                    ┌────────────────────┐
+                    │ LEARNING ENGINE    │
+                    └────────────────────┘
+
+That's the company.
+
+7. And here's something I want us to change in V1
+
+I do not want us building our own AI video-generation engine.
+
+Not now.
+
+This is where I want to be extremely disciplined.
+
+Fawna is already aggregating models such as Veo, Seedance, Kling, Wan, Hailuo, Imagen and ElevenLabs.
+
+Pixo is doing something similar with models including Veo, Seedance, Kling, Hailuo, Vidu, ElevenLabs and others.
+
+Reela is also orchestrating many leading models across video, image, voice and music.
+
+We don't need to fight that battle.
+
+Instead:
+
+Use the best available models as infrastructure.
+
+Our intelligence sits above them.
+
+8. ClipGenius should become model-agnostic
+
+This is now even more important.
+
+For example:
+
+VisualGenerationProvider
+ ├── OpenAI
+ ├── Google
+ ├── Runway
+ ├── Kling
+ ├── Seedance
+ └── Future
+
+But ClipGenius decides:
+
+Which model is best for this particular visual?
+
+The user doesn't need to know.
+
+That's similar to what Reela is doing with model selection.
+
+But again, that's infrastructure — not our product identity.
+
+9. I want to introduce a concept: the ClipGenius Content Graph
+
+This is something I would add to our architecture.
+
+When a user uploads a long video, ClipGenius creates a structured representation of the content.
+
+For example:
+
+PODCAST
+│
+├── Topic: AI
+│   ├── AI replacing jobs
+│   ├── AI productivity
+│   └── AI business opportunities
+│
+├── Topic: Entrepreneurship
+│   ├── Failure
+│   ├── Funding
+│   └── Hiring
+│
+├── Story
+│   └── Founder journey
+│
+├── Opinions
+│   ├── AI is...
+│   └── Startups should...
+│
+├── Quotes
+│
+├── Hooks
+│
+└── CTAs
+
+Now the AI isn't simply looking for random 45-second chunks.
+
+It's looking at:
+
+the knowledge contained inside the video.
+
+That's much more powerful.
+
+10. Then one piece of content can produce MANY content types
+
+From:
+
+Topic: AI replacing jobs
+
+ClipGenius can create:
+
+Video clip
+
+“AI isn't replacing people…”
+
+Quote graphic
+
+“AI won't replace you. Someone using AI might.”
+
+LinkedIn post
+
+An educational text post.
+
+Instagram Reel
+
+Emotional version.
+
+TikTok
+
+Punchier version.
+
+YouTube Short
+
+Search-optimized version.
+
+Carousel
+
+5-slide educational breakdown.
+
+Now we're not just a video editor.
+
+We're extracting the intellectual property inside the content.
+
+That is a much bigger opportunity.
+
+11. This is where I want the product to eventually go
+User uploads:
+
+1 podcast
+
+ClipGenius identifies:
+
+27 content ideas
+
+Then:
+
+27 ideas
+ ↓
+12 videos
+8 quote posts
+5 carousels
+15 social posts
+12 hooks
+12 titles
+12 captions
+
+Then:
+
+Content Calendar
+
+Monday → Video
+
+Tuesday → Quote
+
+Wednesday → LinkedIn
+
+Thursday → Reel
+
+Friday → Educational clip
+
+etc.
+
+That's a content operating system.
+
+12. Now let's talk about pricing
+
+The competitor research actually validates our credit-based thinking.
+
+Reela uses credits based on video-generation/remixing complexity and duration; its current plans range from $10 monthly for Starter to $40 Creator and $100 Studio on monthly billing, with additional credits available.
+
+M Studio also exposes a generation-budget model: its current plans start at $27/month and correspond to a generation budget, with higher tiers around $99 and $199.
+
+Pixo similarly uses credits for its AI generation stack.
+
+So our credit architecture is absolutely correct.
+
+But I would NOT copy their pricing directly.
+
+Our economics are different because video remixing is much cheaper than generating an entire AI movie from scratch.
+
+That can potentially allow ClipGenius to deliver enormous value at a lower entry point.
+
+13. This makes our original $19 plan even more interesting
+
+Something like:
+
+Creator
+$19/month
+
+150 AI processing minutes
+
+AI editing
+transcript
+captions
+clip generation
+basic B-roll
+platform optimization
+YouTube
+Instagram
+TikTok
+Facebook
+
+Then:
+
+Pro
+$49/month
+
+Everything above +
+
+600 minutes
+Brand DNA
+advanced B-roll
+AI image generation
+content campaigns
+multiple brands
+4K
+priority processing
+
+Then:
+
+Business
+$99/month
+1,500 minutes
+team workspace
+campaigns
+publishing
+analytics
+multiple brands
+
+But we will calculate the real unit economics before locking this in.
+
+14. There's another lesson from Reela
+
+Reela markets outcomes extremely well.
+
+They show creators saying things like:
+
+10M+ views
+
+1M+ views per episode
+
++150K followers
+
+and emphasize production volume such as 10,000+ minutes of finished video shipped daily.
+
+That's smart.
+
+We need to do the same.
+
+Don't market:
+
+“ClipGenius uses multimodal AI.”
+
+Market:
+
+“Turn 1 hour of video into 20 pieces of content.”
+
+Then:
+
+Save 8 hours of editing every week.
+
+That's what customers buy.
+
+15. And I want us to create a very powerful marketing demo
+
+When ClipGenius is ready:
+
+Screen recording
+
+Upload:
+
+45-minute podcast
+
+Prompt:
+
+“Create content for startup founders. Find the strongest insights, create short clips, add captions, relevant B-roll, and prepare Instagram, TikTok, YouTube and LinkedIn versions.”
+
+Then show:
+
+AI ANALYZING
+
+47 content moments found
+
+↓
+
+CONTENT PLAN
+
+12 clips
+
+6 quote opportunities
+
+4 educational posts
+
+↓
+
+GENERATING
+
+↓
+
+FINAL RESULT
+
+1 → 23 pieces of content
+
+That video could become our primary marketing asset.
+
+16. I would now officially define our competitors
+Direct
+
+Reela
+
+OpusClip
+
+Descript
+
+Adjacent
+
+Pixo
+
+Fawna
+
+M Studio
+
+General
+
+CapCut
+
+Adobe Premiere
+
+Canva
+
+But we shouldn't try to beat every product feature-for-feature.
+
+17. The strategic battlefield
+
+Here's how I'd position the categories:
+
+                 VIDEO CREATION
+                       ↑
+                       │
+         Fawna   Pixo   M Studio
+                       │
+                       │
+        Reela ─────────┼──────── AI PRODUCTION
+                       │
+                       │
+              CLIPGENIUS
+                       │
+                       ↓
+              CONTENT OPERATION
+                       │
+          OpusClip / Descript
+
+ClipGenius sits at the intersection:
+
+Production + Repurposing + Distribution + Intelligence
+
+That's where I want us.
+
+18. And I would make one more major change
+
+Our original product hierarchy was:
+
+Editor → Repurposer → Campaign → Agent
+
+I'm upgrading it:
+
+Level 1
+
+AI Editor
+
+Level 2
+
+Content Intelligence
+
+Level 3
+
+Repurposing Engine
+
+Level 4
+
+Campaign Generator
+
+Level 5
+
+Publishing Agent
+
+Level 6
+Content Intelligence Agent
+
+At Level 6, ClipGenius understands:
+
+what you create
+who your audience is
+what your brand sounds like
+what content you've published
+what performed
+what didn't
+what content you haven't extracted yet
+
+And then tells you:
+
+“You have 8 strong content opportunities remaining in this podcast.”
+
+That's the long-term moat.
+
+19. What this means for our Codex build
+
+This research actually gives me more confidence about what we should build first.
+
+DO NOT BUILD:
+
+❌ AI movie generator
+❌ AI avatar platform
+❌ storyboard system
+❌ character-consistency engine
+❌ AI music studio
+❌ cinematic text-to-video engine
+
+Those are already crowded categories.
+
+BUILD:
+RAW VIDEO → CONTENT INTELLIGENCE → AI EDIT → CLIPS → PLATFORM CONTENT
+
+That's our beachhead.
+
+20. And eventually we can integrate the others
+
+This is where it gets exciting.
+
+Imagine ClipGenius detects:
+
+“This section needs a visual explanation.”
+
+Instead of manually searching stock footage:
+
+AI Visual Agent
+
+calls:
+
+Veo / Sora / Kling / image model
+
+generates the visual,
+
+then:
+
+ClipGenius inserts it into the edit.
+
+So we don't need to become Reela.
+
+We can orchestrate the ecosystem.
+
+21. I would now describe ClipGenius like this
+Short version
+
+ClipGenius turns raw video into finished content campaigns.
+
+Investor version
+
+ClipGenius is an AI content production platform that understands long-form video, automatically edits and repurposes it into platform-specific content, and eventually learns from publishing performance to continuously improve content recommendations.
+
+Customer version
+
+Upload one video. ClipGenius turns it into weeks of content.
+
+Killer one-liner
+Your video editor, content strategist, and repurposing team — powered by AI.
+22. So here's what happens NOW
+
+We have enough competitive intelligence.
+
+I would stop researching competitors for the moment.
+
+The next move is BUILD.
+
+And I recommend we do this together in a very disciplined way:
+
+BUILD 001
+
+ClipGenius engineering constitution
+
+We define the rules Codex must follow throughout the entire project.
+
+BUILD 002
+
+Monorepo + infrastructure
+
+BUILD 003
+
+Database
+
+BUILD 004
+
+Authentication
+
+BUILD 005
+
+Project + upload system
+
+BUILD 006
+
+Video processing worker
+
+BUILD 007
+
+Transcription
+
+BUILD 008
+
+Content Intelligence Engine
+
+BUILD 009
+
+ClipGenius Editing Language
+
+BUILD 010
+
+AI Edit Plan
+
+BUILD 011
+
+First rendered AI edit
+
+And BUILD 011 is our first huge milestone:
+
+Upload a real video → describe what you want → ClipGenius actually edits it and produces a finished MP4.
+
+After that:
+
+Clip Engine → Platform Engine → Campaign Engine → Brand DNA → Publishing → Analytics → AI Content Agent.
+
+One final thing
+
+Your discovery of these products is actually exactly what we needed at this stage.
+
+They're telling us the market has already accepted:
+
+AI + video + natural language + multi-model orchestration + automated production.
+
+So we don't need to prove that people want AI video.
+
+We need to build the thing they don't yet have enough of:
+
+A system that takes the content they already created and turns it into an entire, intelligent content operation.
+
+That's the lane I would own with ClipGenius.
+
+And yes — I am ready to work with you through the Codex build, one engineering milestone at a time, from repository initialization all the way to production launch.
+
+Today 5:09 PM
+awesome lets go 
+🚀 LET'S BUILD CLIPGENIUS
+
+We're officially moving from strategy to engineering.
+
+I checked the current Codex workflow and the current Next.js/NestJS documentation before giving you this build plan. Codex is designed for end-to-end engineering tasks, including features, refactors, tests and multi-agent work; Next.js's current App Router is the recommended modern routing model, and NestJS remains well suited to a structured, scalable backend.
+
+And I'm going to be your technical/product lead alongside Codex.
+
+You do not need to know every piece of the architecture yourself. Your job will be to run the work, inspect what Codex produces, bring the results/errors here, and I'll help direct the next move.
+
+PHASE 0 — OUR ENGINEERING RULE
+
+There is one rule I want us to establish immediately:
+
+Codex never gets permission to invent the architecture as it goes.
+
+We give it the architecture.
+
+It implements.
+
+It tests.
+
+We review.
+
+Then we proceed.
+
+That will prevent ClipGenius from becoming a giant pile of AI-generated code.
+
+STEP 1 — CREATE THE REPOSITORY
+
+Create a GitHub repository:
+
+clipgenius
+
+Private is fine for now.
+
+Then clone it onto your computer.
+
+Your working directory should eventually be:
+
+clipgenius/
+
+Don't create a bunch of files manually yet.
+
+STEP 2 — OPEN IT IN CODEX
+
+Open the repository in your Codex environment/VS Code.
+
+Codex can work locally through the CLI/editor and can also work through its cloud environment; the current Codex tooling supports Windows as well.
+
+Then give Codex this exact first instruction.
+
+ClipGenius — Codex Task 001: Engineering Foundation
+
+You are the primary implementation engineer for ClipGenius.
+
+PRODUCT CONTEXT
+
+ClipGenius is an AI Content Production Engine.
+
+Core product promise:
+
+One Video. An Entire Content Campaign.
+
+ClipGenius will eventually allow a user to:
+
+Upload raw video.
+Describe what they want using natural language.
+Analyze the video's transcript, audio and visual content.
+Identify valuable content opportunities.
+Generate a structured AI Edit Plan.
+Render an edited master video.
+Generate short-form clips.
+Optimize those clips for YouTube, Instagram, TikTok, Facebook and LinkedIn.
+Generate hooks, titles, descriptions and captions.
+Generate content campaigns.
+Apply Brand DNA.
+Eventually publish and analyze performance.
+
+We are building this from scratch for production use.
+
+Do NOT build the entire product in this task.
+
+This task is ONLY the engineering foundation.
+
+ARCHITECTURE
+
+Create a clean TypeScript monorepo with:
+
+apps/
+web/
+api/
+worker/
+
+packages/
+database/
+ai/
+video/
+prompts/
+types/
+config/
+ui/
+
+docs/
+architecture/
+product/
+ai/
+
+infrastructure/
+
+The architecture must allow the frontend, API and asynchronous AI/video workers to evolve independently.
+
+TECHNOLOGY
+
+Use:
+
+Frontend:
+
+Next.js
+React
+TypeScript
+App Router
+Tailwind CSS
+shadcn/ui where appropriate
+
+Backend:
+
+NestJS
+TypeScript
+
+Database:
+
+PostgreSQL
+Prisma
+
+Background processing:
+
+Redis
+BullMQ
+
+Validation:
+
+Zod where appropriate
+NestJS validation where appropriate
+
+Video processing:
+
+FFmpeg abstraction
+Do NOT implement the complete video pipeline yet.
+
+AI:
+
+Create provider abstractions.
+Do NOT hard-code the application directly to one AI vendor.
+
+Storage:
+
+Create a storage abstraction.
+Production target will be object storage such as Cloudflare R2.
+Do NOT implement full R2 integration in this task unless required for the foundation.
+
+Authentication:
+
+Prepare the architecture for Supabase Auth.
+Do NOT implement the complete authentication system yet.
+
+Payments:
+
+Prepare abstractions for Stripe and Paystack.
+Do NOT implement billing yet.
+MONOREPO REQUIREMENTS
+
+Use a sensible workspace architecture.
+
+Prefer pnpm workspaces and Turborepo unless there is a strong technical reason not to.
+
+Use strict TypeScript.
+
+Configure:
+
+ESLint
+Prettier
+TypeScript strict mode
+consistent path aliases
+environment variable validation
+shared package conventions
+
+Do not duplicate configuration unnecessarily.
+
+APPLICATION RESPONSIBILITIES
+apps/web
+
+Responsible for:
+
+UI
+user interaction
+dashboard
+project screens
+editor UI later
+
+Do not put business logic that belongs to the API here.
+
+apps/api
+
+Responsible for:
+
+REST API
+authentication integration later
+projects
+media metadata
+AI orchestration
+job creation
+billing later
+publishing later
+
+Use NestJS modules with clear boundaries.
+
+apps/worker
+
+Responsible for:
+
+background jobs
+AI processing
+transcription
+video processing
+rendering
+media operations
+
+Do not execute long-running video processing inside the API process.
+
+PACKAGES
+packages/database
+
+Prisma schema and database client.
+
+packages/ai
+
+Provider interfaces and AI domain abstractions.
+
+Initial conceptual interfaces:
+
+AIProvider
+TranscriptionProvider
+VisionProvider
+ImageGenerationProvider
+
+Do not implement every provider yet.
+
+packages/video
+
+Video-domain abstractions.
+
+Create conceptual interfaces for:
+
+VideoProbe
+VideoProcessor
+VideoRenderer
+CaptionRenderer
+
+Do not implement the complete rendering system yet.
+
+packages/prompts
+
+Central location for versioned AI prompts.
+
+Prompts must NOT be scattered throughout controllers and services.
+
+packages/types
+
+Shared domain types.
+
+packages/config
+
+Shared environment/configuration utilities.
+
+packages/ui
+
+Shared UI components where genuinely useful.
+
+Avoid prematurely moving every component into the shared package.
+
+ARCHITECTURAL PRINCIPLES
+
+Follow these principles throughout the project:
+
+Strong separation of concerns.
+Dependency inversion where useful.
+Provider abstractions for external AI/storage/payment services.
+Async processing for expensive operations.
+Idempotent background jobs.
+Structured logging.
+Typed errors.
+Environment variables must never be hard-coded.
+Secrets must never be committed.
+No fake production implementations disguised as complete features.
+No giant files.
+No unnecessary abstractions.
+Prefer simple, maintainable code.
+Write tests for important domain logic.
+Every significant architectural decision should be documented.
+DEVELOPMENT ENVIRONMENT
+
+Create:
+
+.env.example
+
+Document required variables but do not put real credentials anywhere.
+
+Include placeholders for future:
+
+DATABASE_URL
+REDIS_URL
+NEXT_PUBLIC_APP_URL
+API_URL
+SUPABASE_URL
+SUPABASE_ANON_KEY
+SUPABASE_SERVICE_ROLE_KEY
+OPENAI_API_KEY
+ANTHROPIC_API_KEY
+R2_ACCOUNT_ID
+R2_ACCESS_KEY_ID
+R2_SECRET_ACCESS_KEY
+R2_BUCKET_NAME
+STRIPE_SECRET_KEY
+PAYSTACK_SECRET_KEY
+
+Only include variables that are actually needed by the current code.
+
+Do not force the application to require future secrets during local development if the corresponding feature is not implemented.
+
+LOCAL DEVELOPMENT
+
+Provide a clean local development workflow.
+
+The desired developer experience should eventually be:
+
+pnpm install
+
+pnpm dev
+
+And appropriate services should start or be clearly documented.
+
+If Docker is useful for PostgreSQL and Redis locally, provide a docker-compose configuration.
+
+Do not require external cloud services merely to boot the development environment.
+
+DOCUMENTATION
+
+Create:
+
+docs/architecture/overview.md
+
+Document:
+
+system architecture
+application responsibilities
+package responsibilities
+data flow
+future AI pipeline
+future video processing pipeline
+future background job architecture
+
+Create:
+
+docs/product/vision.md
+
+Document the ClipGenius product thesis:
+
+ClipGenius is an AI Content Production Engine that transforms raw video into polished, platform-optimized content campaigns.
+
+Include:
+
+target users
+core workflow
+V1 scope
+future roadmap
+major differentiators
+
+Create:
+
+docs/ai/architecture.md
+
+Document the future AI architecture:
+
+Content Analyzer
+→ Content Intelligence
+→ Creative Director
+→ Edit Planner
+→ Video Editor
+→ Clip Strategist
+→ Platform Optimizer
+→ Campaign Generator
+
+TESTING
+
+Add basic tests proving:
+
+Workspace builds successfully.
+Web application builds.
+API application builds.
+Worker application builds.
+Shared packages resolve correctly.
+Environment validation works.
+Prisma client can be generated.
+Basic NestJS health endpoint works.
+Basic frontend page renders.
+
+Do not create meaningless tests just to increase test count.
+
+HEALTH CHECK
+
+Create a basic API health endpoint:
+
+GET /health
+
+Response should contain something structured such as:
+
+{
+"status": "ok",
+"service": "clipgenius-api"
+}
+
+Keep this simple.
+
+GIT
+
+Create a clean initial commit after everything passes.
+
+Commit message:
+
+feat: initialize ClipGenius engineering foundation
+
+Do NOT push secrets.
+
+IMPORTANT CONSTRAINTS
+
+Do NOT:
+
+build the full dashboard
+build video upload
+build transcription
+build AI editing
+build FFmpeg rendering
+build billing
+build social publishing
+build analytics
+build content campaigns
+invent additional product features
+install unnecessary dependencies
+create placeholder code pretending unfinished features are production-ready
+
+This task is about creating a solid foundation for the actual product.
+
+Before making major architectural decisions, inspect the repository and explain the decision briefly.
+
+At the end, report:
+
+What you created.
+Final repository structure.
+Important architectural decisions.
+Dependencies added.
+Commands to run locally.
+Tests executed and results.
+Anything that could not be completed.
+Recommended next task.
+
+Do not proceed to Task 002 automatically.
+
+STEP 3 — LET CODEX WORK
+
+Once you've pasted that, let Codex execute the task.
+
+Don't start adding things manually while it's working.
+
+When it finishes, I want you to bring me:
+
+Codex's final summary.
+Any errors/warnings.
+The repository tree if Codex provides it.
+The output of its tests/build.
+Any question Codex asks you.
+
+Do not tell Codex to continue to Task 002 yet.
+
+What we're building after this
+
+Our sequence is now locked:
+
+TASK 001
+Engineering Foundation
+        ↓
+TASK 002
+Database + Domain Model
+        ↓
+TASK 003
+Authentication + Organizations
+        ↓
+TASK 004
+Projects
+        ↓
+TASK 005
+Video Upload
+        ↓
+TASK 006
+Media Processing Worker
+        ↓
+TASK 007
+Transcription
+        ↓
+TASK 008
+Content Intelligence
+        ↓
+TASK 009
+ClipGenius Editing Language
+        ↓
+TASK 010
+AI Edit Plan
+        ↓
+TASK 011
+FIRST REAL AI RENDER
+        ↓
+TASK 012
+Clip Engine
+        ↓
+TASK 013
+Platform Engine
+        ↓
+TASK 014
+AI Editor
+        ↓
+TASK 015
+Brand DNA
+        ↓
+TASK 016
+Content Campaigns
+        ↓
+TASK 017
+Billing
+        ↓
+TASK 018
+Publishing
+        ↓
+TASK 019
+Analytics
+        ↓
+TASK 020
+PRIVATE BETA
+        ↓
+🚀 PUBLIC LAUNCH
+
+And there is an important milestone hidden in that roadmap:
+
+TASK 011 = the moment ClipGenius becomes real.
+
+We'll take an actual video, give ClipGenius an instruction, and get back an actual edited video.
+
+Everything before that is infrastructure.
+
+Everything after that is turning the engine into a business.
+
+One adjustment from our earlier architecture
+
+I'm deliberately making the first task smaller than the architecture we discussed.
+
+That's intentional.
+
+Codex is extremely capable, but we want to use it like a senior engineering team: small, testable, reviewable milestones rather than one enormous autonomous build. OpenAI currently describes Codex as capable of end-to-end engineering work and multi-agent workflows, but that capability is most useful when we give it clear engineering boundaries.
+
+So don't worry about getting the whole thing built today.
+
+We're going to build this properly.
+
+Your immediate action:
+
+Open the empty clipgenius repo in Codex → paste Task 001 above → run it.
+
+Then bring me Codex's result.
+
+I'll review it with you and give you Task 002.
+
+ have created a private repo 
+Bigjoecode/clipgenius
+
+Excellent. The repository exists on your side, and we're ready to treat it as the official ClipGenius codebase.
+
+I tried opening the repository from here, but because it is private, GitHub returns a 404 to my web access. That's expected for a private repo; I won't pretend I can see its contents.
+
+More importantly, I want to slightly upgrade our development process before we let Codex touch it.
+
+OpenAI's current Codex guidance specifically recommends starting large changes in Ask/plan mode, using well-scoped tasks, and treating the repository as an agent-friendly environment with explicit instructions and tests.
+
+So we're going to create a ClipGenius engineering constitution first.
+
+🚀 CLIPGENIUS BUILD — DAY 1
+Step 1 — Connect the repo to Codex
+
+In Codex, connect/select:
+
+GitHub → Bigjoecode/clipgenius
+
+Make sure Codex can see the private repository.
+
+Don't ask it to build anything yet.
+
+Step 2 — Give Codex this FIRST instruction
+
+I want this to be our permanent starting point.
+
+ClipGenius — Master Engineering Instructions
+
+You are the primary AI software engineer working on the ClipGenius project.
+
+You are working alongside a human product/technical lead.
+
+Your job is to implement carefully scoped engineering tasks while preserving the product architecture, maintainability, security, performance and long-term scalability of the system.
+
+1. PRODUCT
+
+Product name:
+
+ClipGenius
+
+Category:
+
+AI Content Production Engine
+
+Core promise:
+
+One Video. An Entire Content Campaign.
+
+ClipGenius transforms raw video into polished, platform-optimized content.
+
+The long-term workflow is:
+
+Raw Video
+→ Content Intelligence
+→ AI Creative Director
+→ AI Edit Plan
+→ AI Video Editor
+→ Clip Generation
+→ Platform Optimization
+→ Content Campaign
+→ Publishing
+→ Analytics
+→ Learning
+
+2. V1 PRODUCT
+
+The initial product must focus on:
+
+Uploading a video.
+Transcribing the video.
+Understanding the video's content.
+Identifying valuable content opportunities.
+Accepting natural-language editing instructions.
+Generating a structured Edit Plan.
+Rendering an edited video.
+Generating short-form clips.
+Optimizing clips for:
+YouTube
+Instagram
+TikTok
+Facebook
+Generating:
+hooks
+titles
+descriptions
+captions
+
+Do not expand V1 scope without explicit approval.
+
+3. PRODUCT POSITIONING
+
+ClipGenius is NOT primarily:
+
+a video generator
+an AI movie generator
+an avatar generator
+a traditional timeline editor
+an OpusClip clone
+
+ClipGenius is:
+
+An AI content production engine that turns existing raw content into finished, platform-optimized content campaigns.
+
+The product should eventually feel like an AI content team.
+
+4. ENGINEERING PRINCIPLES
+
+Follow these principles throughout the repository.
+
+Architecture
+
+Prefer clear modular architecture over shortcuts.
+
+Use separation of concerns.
+
+Do not place business logic inside UI components.
+
+Do not place long-running work inside API request handlers.
+
+Do not couple the application directly to third-party vendors when an abstraction is reasonable.
+
+Type Safety
+
+Use TypeScript strict mode.
+
+Avoid any.
+
+Do not suppress TypeScript errors without a documented reason.
+
+Use schema validation for external data.
+
+Reliability
+
+AI operations must be treated as unreliable external operations.
+
+Implement:
+
+retries where appropriate
+timeouts
+structured errors
+job states
+idempotency
+logging
+Security
+
+Never commit:
+
+API keys
+passwords
+private tokens
+service credentials
+production secrets
+
+Never expose server-only credentials to the browser.
+
+Validate uploaded files.
+
+Treat uploaded media and user-provided prompts as untrusted input.
+
+Performance
+
+Do not process large videos synchronously in HTTP requests.
+
+Video processing must use background jobs.
+
+AI processing must use background jobs where appropriate.
+
+Do not load entire large videos into application memory unnecessarily.
+
+5. AI ARCHITECTURE
+
+Do not scatter LLM calls throughout the application.
+
+Create a dedicated AI layer.
+
+Conceptually:
+
+AI Provider
+→ Content Analyzer
+→ Content Intelligence
+→ Creative Director
+→ Edit Planner
+→ Clip Strategist
+→ Platform Optimizer
+→ Campaign Generator
+
+Providers should be replaceable.
+
+Potential providers include:
+
+OpenAI
+Anthropic
+Google
+future providers
+
+Do not assume one model will permanently power the entire system.
+
+6. CLIPGENIUS CONTENT INTELLIGENCE
+
+ClipGenius must understand content before editing it.
+
+The intelligence pipeline will eventually include:
+
+Audio
++
+Transcript
++
+Speaker information
++
+Video frames
++
+User prompt
++
+Brand DNA
++
+Historical preferences
++
+Platform requirements
+
+This produces a structured representation of the source content.
+
+The system should identify:
+
+topics
+stories
+arguments
+insights
+questions
+answers
+emotional moments
+controversial statements
+quotes
+hooks
+calls to action
+visual opportunities
+potential clips
+7. CONTENT OPPORTUNITIES
+
+A Content Opportunity is a first-class domain object.
+
+Conceptually:
+
+ContentOpportunity
+
+id
+projectId
+startTime
+endTime
+topic
+contentType
+hook
+summary
+reason
+recommendedDuration
+
+scores:
+  hook
+  clarity
+  emotionalImpact
+  standaloneValue
+  retentionPotential
+  platformFit
+
+recommendedPlatforms[]
+
+Do not implement this prematurely unless the current task requires it.
+
+8. CLIPGENIUS EDITING LANGUAGE
+
+AI must not directly manipulate FFmpeg.
+
+AI produces structured editing instructions.
+
+Conceptual operations include:
+
+KEEP
+REMOVE
+CUT
+SPLIT
+ZOOM
+PAN
+REFRAME
+CAPTION
+EMPHASIZE
+BROLL
+IMAGE
+TEXT
+AUDIO
+MUSIC
+SPEED
+TRANSITION
+HOOK
+CTA
+
+The AI decides WHAT should happen.
+
+The video engine decides HOW it happens.
+
+This separation is mandatory.
+
+9. EDIT PLAN
+
+The EditPlan is the contract between AI and the rendering system.
+
+Conceptually:
+
+EditPlan
+
+source
+objective
+audience
+tone
+pacing
+platform
+
+operations[]
+  type
+  start
+  end
+  parameters
+
+output
+  aspectRatio
+  duration
+  resolution
+
+EditPlan must be schema validated.
+
+Never trust raw LLM output.
+
+10. VIDEO ARCHITECTURE
+
+Video processing must be isolated from the API.
+
+Expected architecture:
+
+User
+→ API
+→ Job Queue
+→ Worker
+→ Video Processor
+→ Object Storage
+→ Database
+→ Notification
+
+Expected technologies:
+
+FFmpeg
+Remotion where useful
+background workers
+object storage
+
+Do not build an enormous browser-based video editor in V1.
+
+AI-first editing is the priority.
+
+11. STORAGE
+
+Source videos and rendered videos belong in object storage.
+
+Do not store large video binaries directly inside PostgreSQL.
+
+Database records should reference media objects.
+
+The storage provider must eventually be replaceable.
+
+12. DATABASE
+
+Expected technology:
+
+PostgreSQL + Prisma.
+
+Core future domain areas include:
+
+users
+organizations
+organizationMembers
+subscriptions
+usage
+projects
+mediaAssets
+transcripts
+transcriptSegments
+speakers
+contentSegments
+contentOpportunities
+editPlans
+editOperations
+renders
+clips
+clipVersions
+platformVersions
+brandProfiles
+brandAssets
+prompts
+aiRuns
+jobs
+jobEvents
+socialAccounts
+publishingJobs
+analytics
+notifications
+
+Only implement tables required by the current task.
+
+Do not build the entire future database just because it is listed here.
+
+13. BACKGROUND JOBS
+
+Expected technology:
+
+Redis + BullMQ.
+
+Jobs will eventually include:
+
+UPLOAD_PROCESSING
+MEDIA_PROBE
+TRANSCRIPTION
+VIDEO_ANALYSIS
+CONTENT_ANALYSIS
+CONTENT_OPPORTUNITY_DISCOVERY
+EDIT_PLAN_GENERATION
+BROLL_SEARCH
+IMAGE_GENERATION
+VIDEO_RENDER
+CLIP_RENDER
+PLATFORM_RENDER
+EXPORT
+PUBLISH
+
+Jobs must have explicit states.
+
+Failed jobs must be diagnosable.
+
+14. FRONTEND
+
+Expected technology:
+
+Next.js
+React
+TypeScript
+Tailwind
+shadcn/ui where appropriate
+
+The frontend should prioritize:
+
+simplicity
+clarity
+speed
+visual quality
+AI-first workflows
+
+Avoid building a complicated professional-editor interface before it is required.
+
+15. USER EXPERIENCE PRINCIPLE
+
+The user should be able to say:
+
+"Turn this podcast into engaging content for startup founders. Remove unnecessary pauses, add clean captions, emphasize the strongest statements, use relevant B-roll and create clips for Instagram, TikTok and YouTube."
+
+ClipGenius should translate that instruction into structured actions.
+
+The user should not need to understand:
+
+FFmpeg
+codecs
+rendering pipelines
+AI models
+JSON
+prompt engineering
+video-processing infrastructure
+16. CODE QUALITY
+
+Before considering a task complete:
+
+Run appropriate:
+
+type checks
+linting
+unit tests
+integration tests
+build
+database validation
+
+Do not claim a task works unless it has been tested.
+
+When something cannot be tested because an external service is unavailable, explicitly state that.
+
+17. GIT WORKFLOW
+
+Use small, meaningful commits.
+
+Do not make enormous unrelated commits.
+
+Commit messages should clearly describe the change.
+
+Do not modify unrelated files.
+
+Do not rewrite working architecture without a reason.
+
+18. CODEX WORKFLOW
+
+For every substantial task:
+
+Inspect the repository.
+Understand existing architecture.
+State an implementation plan.
+Identify affected files.
+Implement.
+Run tests.
+Run type checking.
+Run linting.
+Run builds where appropriate.
+Review the diff.
+Report what changed.
+Report validation evidence.
+Identify remaining risks.
+
+Do not automatically begin another major task after completing one.
+
+Wait for the next explicit task.
+
+19. IMPORTANT
+
+Do not invent requirements.
+
+Do not silently change product strategy.
+
+Do not add features because they seem useful.
+
+Do not replace architectural decisions without explaining why.
+
+If an implementation decision has meaningful long-term consequences, stop and explain the options before proceeding.
+
+When uncertain, ask the human technical lead.
+
+20. CURRENT PROJECT STAGE
+
+The repository is currently at the beginning of development.
+
+The immediate objective is:
+
+Establish a clean, production-oriented engineering foundation.
+
+The next milestones are:
+
+TASK 001
+Engineering Foundation
+
+TASK 002
+Database + Domain Model
+
+TASK 003
+Authentication + Organizations
+
+TASK 004
+Projects
+
+TASK 005
+Video Upload
+
+TASK 006
+Media Processing Worker
+
+TASK 007
+Transcription
+
+TASK 008
+Content Intelligence
+
+TASK 009
+ClipGenius Editing Language
+
+TASK 010
+AI Edit Plan
+
+TASK 011
+First Real AI Render
+
+Do not skip milestones.
+
+FINAL RULE
+
+Build ClipGenius like a serious SaaS company.
+
+Favor:
+
+clarity
+testability
+security
+maintainability
+observability
+scalability
+
+over:
+
+speed at any cost
+clever hacks
+unnecessary abstraction
+feature count
+
+The goal is not to generate the most code.
+
+The goal is to build the correct product.
+
+Step 3 — Ask Codex to create AGENTS.md
+
+After giving it the instructions above, tell Codex:
+
+Create the repository-level AGENTS.md from the engineering instructions above. Before writing it, inspect the repository. Do not implement product features yet. Then validate that the instructions are internally consistent.
+
+This is important because AGENTS.md becomes the persistent operating context for the coding agent.
+
+OpenAI has described exactly this kind of agent-friendly repository setup in its own engineering work: the initial repository scaffold and even the AGENTS.md were generated by Codex, with tests and guardrails treated as part of the system.
+
+Step 4 — Then we do Task 001
+
+Once AGENTS.md exists, we give Codex the actual implementation task I gave you previously:
+
+Implement ClipGenius Task 001 — Engineering Foundation.
+
+And importantly, start in Ask/Plan mode first.
+
+Ask Codex:
+
+Inspect the repository and produce an implementation plan for ClipGenius Task 001. Do not modify files yet. Identify the proposed monorepo structure, package manager, build tooling, local development services, and any risks.
+
+OpenAI's own Codex guidance recommends this plan-first approach for larger changes and says Codex performs best on well-scoped tasks roughly in the range of an hour of engineering work or a few hundred lines of code.
+
+Then we review the plan before you let it code.
+
+One more thing: GitHub + Codex
+
+Because this is going to become a serious production repository, we should eventually connect the GitHub repo directly to Codex and use PR/review discipline rather than letting an agent continuously mutate production code.
+
+Current Codex tooling supports GitHub-connected workflows, code review and CI/CD integration, and OpenAI's current guidance emphasizes explicit boundaries, sandboxing and approvals for higher-risk operations.
+
+I also recommend we eventually enable automated security review once the repository has enough code to make that meaningful; Codex Security can connect to GitHub repositories, build a codebase-specific threat model, validate findings and propose patches for human review.
+
+So, Joseph — we're at the starting line.
+
+Don't ask Codex to build the app yet.
+
+Do these three things:
+
+Open Bigjoecode/clipgenius in Codex.
+Give it the Master Engineering Instructions above and have it create AGENTS.md.
+Ask it for the Task 001 implementation plan in Ask/Plan mode.
+Then bring me Codex's plan.
+
+I'll act as the technical lead reviewing the plan before we authorize the implementation.
+
+Once I approve it with you, we'll tell Codex:
+
+BUILD TASK 001.
+
+And from there, we start laying the actual foundation of ClipGenius.

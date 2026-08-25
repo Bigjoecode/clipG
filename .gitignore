@@ -1,0 +1,15 @@
+.env
+.env.*
+!.env.example
+.next/
+.pnpm-stale*/
+.pnpm-store/
+.turbo/
+coverage/
+dist/
+generated/
+node_modules/
+*.tsbuildinfo
+*.log
+.DS_Store
+Thumbs.db
