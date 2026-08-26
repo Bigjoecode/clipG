@@ -1,6 +1,7 @@
 import {
   type CanActivate,
   type ExecutionContext,
+  Inject,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -34,6 +35,7 @@ function bearerTokenFromHeader(
 @Injectable()
 export class AuthenticationGuard implements CanActivate {
   public constructor(
+    @Inject(AuthenticationService)
     private readonly authenticationService: AuthenticationService,
   ) {}
 

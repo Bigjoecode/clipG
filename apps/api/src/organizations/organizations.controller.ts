@@ -5,6 +5,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Inject,
   Param,
   Patch,
   Post,
@@ -34,7 +35,10 @@ import type {
 @Controller('organizations')
 @UseGuards(AuthenticationGuard)
 export class OrganizationsController {
-  public constructor(private readonly organizations: OrganizationsService) {}
+  public constructor(
+    @Inject(OrganizationsService)
+    private readonly organizations: OrganizationsService,
+  ) {}
 
   @Post()
   public create(
