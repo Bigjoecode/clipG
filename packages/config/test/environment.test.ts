@@ -2,16 +2,36 @@ import { describe, expect, it } from 'vitest';
 
 import {
   parseApiEnvironment,
+  parseAuthEnvironment,
   parseDatabaseEnvironment,
+  parseWebEnvironment,
   parseWorkerEnvironment,
   redisConnectionOptionsFromUrl,
 } from '../src/index.js';
 
 describe('environment validation', () => {
   it('provides safe local defaults for application boot', () => {
-    expect(parseApiEnvironment({})).toEqual({ API_PORT: 4000 });
+    expect(parseApiEnvironment({})).toEqual({
+      API_PORT: 4000,
+      WEB_ORIGIN: 'http://localhost:3000',
+    });
     expect(parseWorkerEnvironment({})).toEqual({
       REDIS_URL: 'redis://localhost:6379',
+    });
+  });
+
+  it('requires Supabase public credentials for active auth clients', () => {
+    expect(() => parseAuthEnvironment({})).toThrow();
+    expect(() => parseWebEnvironment({})).toThrow();
+
+    expect(
+      parseAuthEnvironment({
+        SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_test_key',
+        SUPABASE_URL: 'https://project.supabase.co',
+      }),
+    ).toEqual({
+      SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_test_key',
+      SUPABASE_URL: 'https://project.supabase.co',
     });
   });
 

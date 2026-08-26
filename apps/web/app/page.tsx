@@ -1,4 +1,5 @@
 import { BrandMark } from '@clipgenius/ui';
+import Link from 'next/link';
 
 export default function HomePage() {
   return (
@@ -18,6 +19,20 @@ export default function HomePage() {
           Turn raw video into polished, platform-optimized content. The
           engineering foundation is ready for the product workflows that follow.
         </p>
+        <div className="mt-9 flex gap-4">
+          <Link
+            className="rounded-xl bg-violet-600 px-5 py-3 font-semibold hover:bg-violet-500"
+            href="/signup"
+          >
+            Create account
+          </Link>
+          <Link
+            className="rounded-xl border border-zinc-700 px-5 py-3 font-semibold hover:border-zinc-500"
+            href="/login"
+          >
+            Sign in
+          </Link>
+        </div>
       </section>
     </main>
   );

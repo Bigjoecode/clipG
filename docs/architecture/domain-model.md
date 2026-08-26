@@ -28,7 +28,7 @@ A user can belong to many organizations and an organization can contain many use
 
 `User` is the application-owned identity record. It contains a UUID primary key, unique email, optional profile fields, optional verification timestamp, and audit timestamps.
 
-Authentication-provider identifiers are deliberately absent. Task 003 will decide how Supabase identities map to application users without making the core data model inseparable from one authentication vendor.
+Task 003 maps the verified Supabase `sub` UUID to `User.id`. The identifier remains a generic UUID, email is never used for implicit account linking, and Supabase verification remains behind an API provider boundary. A future multi-provider requirement should introduce a first-class external-identity table through its own migration.
 
 ### Organization
 
