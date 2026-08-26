@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "dev": "node --watch --enable-source-maps --import tsx src/main.ts",
+    "dev": "node --env-file=../../.env --watch --enable-source-maps --import tsx src/main.ts",
     "lint": "eslint src test",
     "start": "node --enable-source-maps dist/main.js",
     "test": "vitest run",
