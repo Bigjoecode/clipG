@@ -1,6 +1,13 @@
 import { z } from 'zod';
 
 const url = z.string().url();
+const postgresUrl = url.refine(
+  (value) => {
+    const protocol = new URL(value).protocol;
+    return protocol === 'postgres:' || protocol === 'postgresql:';
+  },
+  { message: 'DATABASE_URL must use the postgres or postgresql protocol.' },
+);
 
 export const apiEnvironmentSchema = z.object({
   API_PORT: z.coerce.number().int().min(1).max(65_535).default(4000),
@@ -15,7 +22,12 @@ export const webEnvironmentSchema = z.object({
   NEXT_PUBLIC_APP_URL: url.default('http://localhost:3000'),
 });
 
+export const databaseEnvironmentSchema = z.object({
+  DATABASE_URL: postgresUrl,
+});
+
 export type ApiEnvironment = z.infer<typeof apiEnvironmentSchema>;
+export type DatabaseEnvironment = z.infer<typeof databaseEnvironmentSchema>;
 export type WebEnvironment = z.infer<typeof webEnvironmentSchema>;
 export type WorkerEnvironment = z.infer<typeof workerEnvironmentSchema>;
 
@@ -23,6 +35,12 @@ export function parseApiEnvironment(
   source: Record<string, string | undefined>,
 ): ApiEnvironment {
   return apiEnvironmentSchema.parse(source);
+}
+
+export function parseDatabaseEnvironment(
+  source: Record<string, string | undefined>,
+): DatabaseEnvironment {
+  return databaseEnvironmentSchema.parse(source);
 }
 
 export function parseWebEnvironment(

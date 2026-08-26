@@ -24,6 +24,9 @@
     "typecheck:turbo": "turbo run typecheck",
     "validate": "corepack pnpm format:check && corepack pnpm lint && corepack pnpm typecheck && corepack pnpm test && corepack pnpm build",
     "db:generate": "corepack pnpm --filter @clipgenius/database generate",
+    "db:migrate": "corepack pnpm --filter @clipgenius/database migrate:dev",
+    "db:migrate:deploy": "corepack pnpm --filter @clipgenius/database migrate:deploy",
+    "db:validate": "corepack pnpm --filter @clipgenius/database validate",
     "services:up": "docker compose -f infrastructure/compose.yaml up -d",
     "services:down": "docker compose -f infrastructure/compose.yaml down"
   },

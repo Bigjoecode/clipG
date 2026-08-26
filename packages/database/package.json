@@ -14,14 +14,25 @@
   "scripts": {
     "build": "corepack pnpm generate && tsc -p tsconfig.build.json",
     "dev": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
+    "format": "prisma format",
     "generate": "prisma generate",
-    "lint": "eslint src prisma.config.ts",
+    "lint": "eslint src test prisma.config.ts",
+    "migrate:deploy": "prisma migrate deploy",
+    "migrate:dev": "prisma migrate dev",
+    "pretest": "corepack pnpm --filter @clipgenius/types build",
+    "test": "corepack pnpm generate && vitest run",
+    "validate": "prisma validate",
     "typecheck": "corepack pnpm generate && tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@prisma/client": "^7.9.1"
+    "@prisma/adapter-pg": "7.9.1",
+    "@prisma/client": "7.9.1",
+    "pg": "^8.23.0"
   },
   "devDependencies": {
-    "prisma": "^7.9.1"
+    "@clipgenius/types": "workspace:*",
+    "@types/pg": "^8.23.1",
+    "prisma": "7.9.1",
+    "vitest": "^4.1.11"
   }
 }

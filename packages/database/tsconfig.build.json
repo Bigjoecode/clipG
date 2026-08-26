@@ -6,5 +6,5 @@
     "outDir": "dist",
     "sourceMap": true
   },
-  "exclude": ["prisma.config.ts"]
+  "exclude": ["prisma.config.ts", "test"]
 }

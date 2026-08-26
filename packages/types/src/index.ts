@@ -6,3 +6,7 @@ export interface ServiceHealth {
   readonly status: ServiceStatus;
   readonly service: string;
 }
+
+export const organizationRoles = ['OWNER', 'ADMIN', 'MEMBER'] as const;
+
+export type OrganizationRole = (typeof organizationRoles)[number];

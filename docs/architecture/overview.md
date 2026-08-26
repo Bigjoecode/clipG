@@ -43,16 +43,16 @@ The standalone NestJS application is the host for BullMQ processors. Task 001 co
 
 ## Package responsibilities
 
-| Package                | Responsibility                                                        |
-| ---------------------- | --------------------------------------------------------------------- |
-| `@clipgenius/ai`       | Replaceable AI, transcription, vision, and image-generation contracts |
-| `@clipgenius/config`   | Runtime environment validation and connection configuration           |
-| `@clipgenius/database` | Prisma schema, generated client, and future database access boundary  |
-| `@clipgenius/prompts`  | Versioned prompt definitions, separate from controllers and services  |
-| `@clipgenius/storage`  | Streaming object-storage contract; future R2 implementation boundary  |
-| `@clipgenius/types`    | Small set of genuinely cross-runtime domain types                     |
-| `@clipgenius/ui`       | Reusable presentation components with no business logic               |
-| `@clipgenius/video`    | Probe, processing, caption, and rendering contracts                   |
+| Package                | Responsibility                                                             |
+| ---------------------- | -------------------------------------------------------------------------- |
+| `@clipgenius/ai`       | Replaceable AI, transcription, vision, and image-generation contracts      |
+| `@clipgenius/config`   | Runtime environment validation and connection configuration                |
+| `@clipgenius/database` | Prisma schema, migrations, generated client, and PostgreSQL client factory |
+| `@clipgenius/prompts`  | Versioned prompt definitions, separate from controllers and services       |
+| `@clipgenius/storage`  | Streaming object-storage contract; future R2 implementation boundary       |
+| `@clipgenius/types`    | Small set of genuinely cross-runtime domain types                          |
+| `@clipgenius/ui`       | Reusable presentation components with no business logic                    |
+| `@clipgenius/video`    | Probe, processing, caption, and rendering contracts                        |
 
 `@clipgenius/storage` is an intentional addition to the minimum package list because object storage is a required external boundary and does not belong to the AI, video, database, or generic types packages.
 
@@ -65,7 +65,10 @@ The standalone NestJS application is the host for BullMQ processors. Task 001 co
 - Applications remain independently buildable and runnable.
 - Environment schemas are scoped by runtime so a service does not require credentials for integrations it does not use.
 - Vendor SDKs are added only with the feature that uses them.
-- Domain tables are deferred to Task 002; the Task 001 Prisma schema proves generation without inventing the model.
+- Task 002 adds only the user, organization, and membership tables required by
+  the next authentication milestone. See the
+  [identity and tenancy domain model](domain-model.md) for its invariants and
+  deliberate deferrals.
 
 ## Future request and data flow
 
