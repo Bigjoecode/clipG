@@ -38,6 +38,10 @@ The user directs the outcome in natural language. ClipGenius translates that int
 
 The interaction model supports two complementary workflows: a creator can ask ClipGenius to make professional editing decisions, or provide precise instructions such as placing an uploaded visual at a timestamp or when a phrase, topic, speaker, or event occurs. These instructions produce non-destructive revisions, so the original media remains intact and later edits can be changed or reversed.
 
+A future reference-style workflow may let a creator upload an authorized reference, provide a supported platform URL, or describe a style in words. ClipGenius should extract general characteristics such as pacing, caption treatment, framing, transitions, and visual rhythm into a structured style profile, then apply that direction to the creator's own footage. It must not copy the reference's footage, audio, voice, branded elements, or exact sequence.
+
+URL support is permission-aware rather than a generic social-media downloader. If an official integration cannot provide media that ClipGenius is permitted to analyze, the product should request an authorized upload or accept a written style description instead.
+
 ## V1 scope
 
 V1 will focus on uploading and transcribing a video, content understanding, opportunity discovery, natural-language editing direction, structured Edit Plans, a real edited render, short-form clips, and optimization for YouTube, Instagram, TikTok, and Facebook. It will also generate hooks, titles, descriptions, and captions.
@@ -55,6 +59,7 @@ The milestones are intentionally incremental. Task 001 establishes only the engi
 - **Creator footage stays central:** original media is preserved while AI directs edits and repurposing.
 - **Flexible creative control:** users can delegate decisions or direct individual edits in natural language.
 - **Traceable supporting media:** user uploads, generated assets, and licensed media retain explicit provenance.
+- **Reference-informed, not copied:** learn general editing characteristics from authorized references while producing an original edit from the creator's media.
 
 ## Roadmap
 

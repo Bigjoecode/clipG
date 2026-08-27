@@ -19,6 +19,30 @@ An operation that references an asset must use its stored identity and provenanc
 
 When authorized by later milestones, editing instructions may resolve both explicit timing (`00:20`) and semantic timing (for example, when a topic is discussed or a phrase is spoken). Semantic resolution must produce inspectable time ranges before rendering; a renderer never executes an unresolved natural-language instruction.
 
+## Reference-style boundary
+
+A future Reference Style Analyzer may convert an authorized uploaded reference, a supported platform reference, or a natural-language description into a versioned `ReferenceStyleProfile`. The profile represents general editing characteristics rather than media to copy. Candidate fields include pacing and average shot duration, caption placement and emphasis, punch-in and reframing frequency, B-roll and overlay density, transition behavior, audio intensity, aspect ratio, energy, and visual rhythm.
+
+```text
+Authorized reference or style description
+-> Reference Style Analyzer
+-> schema-validated ReferenceStyleProfile
+-> Creative Director + source media + user assets + user instruction
+-> Edit Plan
+```
+
+Platform URLs must be resolved only through permitted provider capabilities and access granted for the intended analysis. Metadata or an embed alone must not be presented as full audiovisual analysis. The system must not add an unsupported scraper or downloader as a fallback; it should request an authorized upload or style description.
+
+The Creative Director resolves preferences in this order:
+
+1. safety, rights, and platform constraints;
+2. the user's latest explicit instruction;
+3. the project's selected reference style;
+4. Brand DNA or saved user/organization defaults; and
+5. AI-selected defaults.
+
+Reference media and extracted profiles remain distinct from timeline assets. A profile may influence an Edit Plan, but the source reference cannot appear in a render unless it independently qualifies as an approved, provenance-aware asset.
+
 ## Conceptual pipeline
 
 ```text

@@ -110,6 +110,38 @@ These rules define future architecture; they do not authorize early
 implementation of uploads, asset libraries, semantic placement, Edit Plans, or
 rendering before their scheduled milestones.
 
+## Reference-Based Editing
+
+ClipGenius may learn abstract editing direction from a user-provided reference
+without copying or republishing the reference itself.
+
+- Future reference inputs may be an uploaded video, a supported platform URL, or
+  a natural-language style description.
+- A reference is analyzed into a structured, inspectable style profile covering
+  characteristics such as pacing, shot duration, caption behavior, framing,
+  transitions, visual density, B-roll frequency, audio intensity, and hook
+  structure. The reference media itself is not a render asset unless the user
+  owns it, uploads it for that purpose, and explicitly requests its use.
+- Reference analysis must not copy footage, audio, voices, branded graphics, or a
+  distinctive sequence shot-for-shot. It extracts general creative attributes
+  and applies them to the user's own source media and approved assets.
+- A pasted URL is a locator, not permission to scrape or download media. Use
+  official platform integrations and authorized access where available. When
+  permitted media access is unavailable, ask the user to upload a copy they are
+  authorized to use or provide a written style description.
+- Store the reference source and the resulting style profile separately. Style
+  profiles must retain their source, analysis version, and provenance and may be
+  reusable only within future product scopes that explicitly authorize presets.
+- Resolve creative conflicts predictably: the user's latest explicit instruction
+  overrides project reference style, which overrides Brand DNA or saved defaults,
+  which overrides AI-selected defaults. Safety, rights, and platform rules always
+  remain mandatory.
+
+Reference-based editing belongs inside the future Creative Director and Edit Plan
+flow. It does not alter the delivery sequence or authorize a generic social-video
+downloader, platform scraper, reference analyzer, or preset marketplace before an
+applicable milestone is approved.
+
 ## Required Architecture
 
 The intended TypeScript monorepo is:
