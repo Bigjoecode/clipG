@@ -95,7 +95,7 @@ describe('MediaService', () => {
           bucket: 'clipgenius-source-media',
           chunkSizeBytes: 6 * 1024 * 1024,
           endpoint:
-            'https://project.storage.supabase.co/storage/v1/upload/resumable',
+            'https://project.storage.supabase.co/storage/v1/upload/resumable/sign',
           expiresAt: new Date('2026-08-27T14:00:00.000Z'),
           key: input.key,
           token: 'signed-token',

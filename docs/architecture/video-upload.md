@@ -14,6 +14,7 @@ Authenticated browser
 -> NestJS validates membership, project state, type, and size
 -> API creates UPLOAD_PENDING MediaAsset
 -> Supabase adapter returns a short-lived signed TUS target
+-> Browser creates the upload through /storage/v1/upload/resumable/sign
 -> Browser uploads 6 MB chunks directly to Supabase Storage
 -> Browser reports percentage and retries interrupted chunks within the signed session
 -> API reads object metadata through the authenticated Storage API

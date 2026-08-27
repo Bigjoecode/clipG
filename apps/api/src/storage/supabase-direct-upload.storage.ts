@@ -46,8 +46,8 @@ export class SupabaseDirectUploadStorage implements DirectUploadStorage {
       : null;
     this.resumableEndpoint =
       projectReference === null
-        ? `${url.origin}/storage/v1/upload/resumable`
-        : `https://${projectReference}.storage.supabase.co/storage/v1/upload/resumable`;
+        ? `${url.origin}/storage/v1/upload/resumable/sign`
+        : `https://${projectReference}.storage.supabase.co/storage/v1/upload/resumable/sign`;
   }
 
   public async createUploadTarget(
