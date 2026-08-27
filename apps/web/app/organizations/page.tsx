@@ -1,5 +1,7 @@
 import Link from 'next/link';
 
+import { ActionNotice } from '../../components/action-notice';
+import { FormSubmitButton } from '../../components/form-submit-button';
 import { logout } from '../auth/actions';
 import { authenticatedApiRequest } from '../../lib/api';
 import { createOrganization } from './actions';
@@ -7,13 +9,16 @@ import { createOrganization } from './actions';
 import type { OrganizationSummary } from '@clipgenius/types';
 
 interface OrganizationsPageProps {
-  readonly searchParams: Promise<{ readonly error?: string }>;
+  readonly searchParams: Promise<{
+    readonly error?: string;
+    readonly message?: string;
+  }>;
 }
 
 export default async function OrganizationsPage({
   searchParams,
 }: OrganizationsPageProps) {
-  const [{ error }, organizations] = await Promise.all([
+  const [{ error, message }, organizations] = await Promise.all([
     searchParams,
     authenticatedApiRequest<readonly OrganizationSummary[]>('/organizations'),
   ]);
@@ -25,14 +30,14 @@ export default async function OrganizationsPage({
           ClipGenius
         </Link>
         <form action={logout}>
-          <button
+          <FormSubmitButton
             className="text-sm text-zinc-400 hover:text-white"
-            type="submit"
-          >
-            Sign out
-          </button>
+            label="Sign out"
+            pendingLabel="Signing out..."
+          />
         </form>
       </header>
+      <ActionNotice error={error} message={message} />
 
       <section className="mt-16 grid gap-10 lg:grid-cols-[1.4fr_1fr]">
         <div>
@@ -73,9 +78,6 @@ export default async function OrganizationsPage({
 
         <aside className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6">
           <h2 className="text-lg font-semibold">Create organization</h2>
-          {error === undefined ? null : (
-            <p className="mt-4 text-sm text-red-300">{error}</p>
-          )}
           <form action={createOrganization} className="mt-6 space-y-4">
             <label className="block text-sm">
               Name
@@ -94,12 +96,11 @@ export default async function OrganizationsPage({
                 name="slug"
               />
             </label>
-            <button
+            <FormSubmitButton
               className="w-full rounded-xl bg-violet-600 px-4 py-3 font-semibold hover:bg-violet-500"
-              type="submit"
-            >
-              Create workspace
-            </button>
+              label="Create workspace"
+              pendingLabel="Creating workspace..."
+            />
           </form>
         </aside>
       </section>

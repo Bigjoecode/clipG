@@ -18,6 +18,20 @@ describe('authentication pages', () => {
     );
   });
 
+  it('renders successful authentication feedback', async () => {
+    render(
+      await LoginPage({
+        searchParams: Promise.resolve({
+          message: 'Signed out successfully.',
+        }),
+      }),
+    );
+
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Signed out successfully.',
+    );
+  });
+
   it('renders safe signup validation feedback', async () => {
     render(
       await SignupPage({

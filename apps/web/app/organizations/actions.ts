@@ -23,12 +23,16 @@ const memberSchema = z.object({
 });
 const removeMemberSchema = memberSchema.omit({ role: true });
 
-function organizationRedirect(slug: string | null, message: string): never {
+function organizationRedirect(
+  slug: string | null,
+  kind: 'error' | 'message',
+  message: string,
+): never {
   const path =
     slug === null
       ? '/organizations'
       : `/organizations/${encodeURIComponent(slug)}`;
-  redirect(`${path}?error=${encodeURIComponent(message)}`);
+  redirect(`${path}?${kind}=${encodeURIComponent(message)}`);
 }
 
 export async function createOrganization(formData: FormData): Promise<never> {
@@ -37,7 +41,11 @@ export async function createOrganization(formData: FormData): Promise<never> {
     slug: formData.get('slug') || undefined,
   });
   if (!result.success) {
-    organizationRedirect(null, 'Enter a valid organization name and slug.');
+    organizationRedirect(
+      null,
+      'error',
+      'Enter a valid organization name and slug.',
+    );
   }
 
   try {
@@ -46,10 +54,14 @@ export async function createOrganization(formData: FormData): Promise<never> {
       { body: JSON.stringify(result.data), method: 'POST' },
     );
     revalidatePath('/organizations');
-    redirect(`/organizations/${organization.slug}`);
+    organizationRedirect(
+      organization.slug,
+      'message',
+      'Workspace created successfully.',
+    );
   } catch (error) {
     if (error instanceof ApiRequestError) {
-      organizationRedirect(null, error.message);
+      organizationRedirect(null, 'error', error.message);
     }
     throw error;
   }
@@ -62,7 +74,7 @@ export async function updateOrganization(formData: FormData): Promise<never> {
     slug: formData.get('slug') || undefined,
   });
   if (!result.success) {
-    organizationRedirect(null, 'Enter valid organization details.');
+    organizationRedirect(null, 'error', 'Enter valid organization details.');
   }
 
   try {
@@ -77,10 +89,14 @@ export async function updateOrganization(formData: FormData): Promise<never> {
       },
     );
     revalidatePath('/organizations');
-    redirect(`/organizations/${organization.slug}`);
+    organizationRedirect(
+      organization.slug,
+      'message',
+      'Organization saved successfully.',
+    );
   } catch (error) {
     if (error instanceof ApiRequestError) {
-      organizationRedirect(result.data.currentSlug, error.message);
+      organizationRedirect(result.data.currentSlug, 'error', error.message);
     }
     throw error;
   }
@@ -89,7 +105,7 @@ export async function updateOrganization(formData: FormData): Promise<never> {
 export async function deleteOrganization(formData: FormData): Promise<never> {
   const slug = z.string().min(1).safeParse(formData.get('slug'));
   if (!slug.success) {
-    organizationRedirect(null, 'Organization slug is missing.');
+    organizationRedirect(null, 'error', 'Organization slug is missing.');
   }
   try {
     await authenticatedApiRequest<void>(
@@ -97,10 +113,10 @@ export async function deleteOrganization(formData: FormData): Promise<never> {
       { method: 'DELETE' },
     );
     revalidatePath('/organizations');
-    redirect('/organizations');
+    organizationRedirect(null, 'message', 'Organization deleted successfully.');
   } catch (error) {
     if (error instanceof ApiRequestError) {
-      organizationRedirect(slug.data, error.message);
+      organizationRedirect(slug.data, 'error', error.message);
     }
     throw error;
   }
@@ -113,7 +129,7 @@ export async function updateMemberRole(formData: FormData): Promise<never> {
     userId: formData.get('userId'),
   });
   if (!result.success) {
-    organizationRedirect(null, 'Member update is invalid.');
+    organizationRedirect(null, 'error', 'Member update is invalid.');
   }
   try {
     await authenticatedApiRequest<OrganizationMember>(
@@ -121,10 +137,18 @@ export async function updateMemberRole(formData: FormData): Promise<never> {
       { body: JSON.stringify({ role: result.data.role }), method: 'PATCH' },
     );
     revalidatePath(`/organizations/${result.data.organizationSlug}`);
-    redirect(`/organizations/${result.data.organizationSlug}`);
+    organizationRedirect(
+      result.data.organizationSlug,
+      'message',
+      'Member role updated successfully.',
+    );
   } catch (error) {
     if (error instanceof ApiRequestError) {
-      organizationRedirect(result.data.organizationSlug, error.message);
+      organizationRedirect(
+        result.data.organizationSlug,
+        'error',
+        error.message,
+      );
     }
     throw error;
   }
@@ -136,7 +160,7 @@ export async function removeMember(formData: FormData): Promise<never> {
     userId: formData.get('userId'),
   });
   if (!result.success) {
-    organizationRedirect(null, 'Member removal is invalid.');
+    organizationRedirect(null, 'error', 'Member removal is invalid.');
   }
   try {
     await authenticatedApiRequest<void>(
@@ -144,10 +168,18 @@ export async function removeMember(formData: FormData): Promise<never> {
       { method: 'DELETE' },
     );
     revalidatePath(`/organizations/${result.data.organizationSlug}`);
-    redirect(`/organizations/${result.data.organizationSlug}`);
+    organizationRedirect(
+      result.data.organizationSlug,
+      'message',
+      'Member removed successfully.',
+    );
   } catch (error) {
     if (error instanceof ApiRequestError) {
-      organizationRedirect(result.data.organizationSlug, error.message);
+      organizationRedirect(
+        result.data.organizationSlug,
+        'error',
+        error.message,
+      );
     }
     throw error;
   }

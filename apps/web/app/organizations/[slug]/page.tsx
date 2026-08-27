@@ -1,5 +1,7 @@
 import Link from 'next/link';
 
+import { ActionNotice } from '../../../components/action-notice';
+import { FormSubmitButton } from '../../../components/form-submit-button';
 import { authenticatedApiRequest } from '../../../lib/api';
 import {
   deleteOrganization,
@@ -12,14 +14,20 @@ import type { OrganizationDetail } from '@clipgenius/types';
 
 interface OrganizationPageProps {
   readonly params: Promise<{ readonly slug: string }>;
-  readonly searchParams: Promise<{ readonly error?: string }>;
+  readonly searchParams: Promise<{
+    readonly error?: string;
+    readonly message?: string;
+  }>;
 }
 
 export default async function OrganizationPage({
   params,
   searchParams,
 }: OrganizationPageProps) {
-  const [{ slug }, { error }] = await Promise.all([params, searchParams]);
+  const [{ slug }, { error, message }] = await Promise.all([
+    params,
+    searchParams,
+  ]);
   const organization = await authenticatedApiRequest<OrganizationDetail>(
     `/organizations/${encodeURIComponent(slug)}`,
   );
@@ -40,11 +48,7 @@ export default async function OrganizationPage({
           {organization.role}
         </span>
       </div>
-      {error === undefined ? null : (
-        <p className="mt-6 rounded-xl border border-red-900 bg-red-950/40 p-3 text-sm text-red-200">
-          {error}
-        </p>
-      )}
+      <ActionNotice error={error} message={message} />
 
       {canManage ? (
         <section className="mt-10 rounded-2xl border border-zinc-800 p-6">
@@ -72,12 +76,11 @@ export default async function OrganizationPage({
                 required
               />
             </label>
-            <button
+            <FormSubmitButton
               className="rounded-xl bg-zinc-100 px-4 py-2 font-semibold text-zinc-950 sm:col-span-2"
-              type="submit"
-            >
-              Save organization
-            </button>
+              label="Save organization"
+              pendingLabel="Saving organization..."
+            />
           </form>
         </section>
       ) : null}
@@ -114,9 +117,11 @@ export default async function OrganizationPage({
                       <option value="ADMIN">Admin</option>
                       <option value="MEMBER">Member</option>
                     </select>
-                    <button className="text-sm text-violet-300" type="submit">
-                      Update
-                    </button>
+                    <FormSubmitButton
+                      className="text-sm text-violet-300"
+                      label="Update"
+                      pendingLabel="Updating..."
+                    />
                   </form>
                 ) : (
                   <span className="text-sm text-zinc-400">{member.role}</span>
@@ -130,9 +135,11 @@ export default async function OrganizationPage({
                       value={organization.slug}
                     />
                     <input name="userId" type="hidden" value={member.userId} />
-                    <button className="text-sm text-red-300" type="submit">
-                      Remove
-                    </button>
+                    <FormSubmitButton
+                      className="text-sm text-red-300"
+                      label="Remove"
+                      pendingLabel="Removing..."
+                    />
                   </form>
                 ) : null}
               </div>
@@ -145,12 +152,11 @@ export default async function OrganizationPage({
         <section className="mt-12 border-t border-zinc-800 pt-8">
           <form action={deleteOrganization}>
             <input name="slug" type="hidden" value={organization.slug} />
-            <button
+            <FormSubmitButton
               className="rounded-xl border border-red-900 px-4 py-2 text-sm text-red-300"
-              type="submit"
-            >
-              Delete organization
-            </button>
+              label="Delete organization"
+              pendingLabel="Deleting organization..."
+            />
           </form>
         </section>
       ) : null}

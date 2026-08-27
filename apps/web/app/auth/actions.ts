@@ -34,7 +34,7 @@ export async function login(formData: FormData): Promise<never> {
     authRedirect('/login', 'error', 'Email or password is incorrect.');
   }
 
-  redirect('/organizations');
+  authRedirect('/organizations', 'message', 'Signed in successfully.');
 }
 
 export async function signup(formData: FormData): Promise<never> {
@@ -76,5 +76,5 @@ export async function signup(formData: FormData): Promise<never> {
 export async function logout(): Promise<never> {
   const supabase = await createClient();
   await supabase.auth.signOut();
-  redirect('/login');
+  authRedirect('/login', 'message', 'Signed out successfully.');
 }
