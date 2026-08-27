@@ -34,17 +34,26 @@ function wait(milliseconds: number): Promise<void> {
 }
 
 async function fetchApi(url: string, init: RequestInit): Promise<Response> {
+  const method = init.method?.toUpperCase() ?? 'GET';
+  const canRetry = method === 'GET' || method === 'HEAD';
+  let response: Response;
   try {
-    return await fetch(url, init);
+    response = await fetch(url, init);
   } catch (error) {
-    const method = init.method?.toUpperCase() ?? 'GET';
-    if (method !== 'GET' && method !== 'HEAD') {
+    if (!canRetry) {
       throw error;
     }
 
     await wait(apiReadRetryDelayMilliseconds);
     return fetch(url, init);
   }
+
+  if (canRetry && response.status >= 500) {
+    await wait(apiReadRetryDelayMilliseconds);
+    return fetch(url, init);
+  }
+
+  return response;
 }
 
 export async function authenticatedApiRequest<T>(

@@ -10,12 +10,15 @@ export interface CreateDatabaseClientOptions {
 
 export function createDatabaseClient({
   connectionString,
-  connectionTimeoutMillis = 5_000,
+  connectionTimeoutMillis = 15_000,
   maxConnections = 10,
 }: CreateDatabaseClientOptions): PrismaClient {
   const adapter = new PrismaPg({
     connectionString,
     connectionTimeoutMillis,
+    idleTimeoutMillis: 30_000,
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 10_000,
     max: maxConnections,
   });
 

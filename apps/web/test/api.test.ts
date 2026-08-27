@@ -55,6 +55,28 @@ describe('authenticatedApiRequest', () => {
     );
   });
 
+  it('retries a read request once after a transient server failure', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ message: 'Internal server error' }), {
+          headers: { 'Content-Type': 'application/json' },
+          status: 500,
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify([{ id: 'organization-id' }]), {
+          headers: { 'Content-Type': 'application/json' },
+          status: 200,
+        }),
+      );
+
+    await expect(authenticatedApiRequest('/organizations')).resolves.toEqual([
+      { id: 'organization-id' },
+    ]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it('does not retry an ambiguous failed write request', async () => {
     const fetchMock = vi
       .spyOn(globalThis, 'fetch')
