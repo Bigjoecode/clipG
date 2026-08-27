@@ -4,6 +4,21 @@
 
 AI is an unreliable external capability, not an authority over the system. ClipGenius owns its schemas, orchestration, product rules, stored domain state, and rendering safety. Providers must be replaceable and raw model output must never cross into domain or rendering code without validation.
 
+## Source preservation boundary
+
+The AI may analyze source media and decide how to edit it, but it must not replace the user's recorded footage with generated media unless the user explicitly requests that result. Clips reference time ranges from source media; editing operations transform or composite those ranges. Generated media is an optional supporting input, not the default output of content analysis.
+
+Future asset and Edit Plan schemas must carry provenance for at least:
+
+- original source media;
+- user-uploaded supporting media;
+- AI-generated media; and
+- licensed external media.
+
+An operation that references an asset must use its stored identity and provenance. Plans must not convert user media into an anonymous model input and present generated output as though it were the original. Source files remain immutable, and iterative prompts create new validated plan revisions rather than destructively rewriting media or prior plans.
+
+When authorized by later milestones, editing instructions may resolve both explicit timing (`00:20`) and semantic timing (for example, when a topic is discussed or a phrase is spoken). Semantic resolution must produce inspectable time ranges before rendering; a renderer never executes an unresolved natural-language instruction.
+
 ## Conceptual pipeline
 
 ```text
@@ -69,7 +84,7 @@ Prompts live in `@clipgenius/prompts` as versioned assets. Controllers and job h
 
 ## Edit Plan safety boundary
 
-The future Edit Plan will contain constrained typed operations such as keep, remove, cut, split, zoom, reframe, caption, B-roll, text, audio, speed, transition, hook, and CTA. A deterministic compiler will validate timing and parameters before translating operations to FFmpeg or another renderer.
+The future Edit Plan will contain constrained typed operations such as keep, remove, cut, split, zoom, reframe, caption, B-roll, image, video, text, audio, music, speed, transition, hook, and CTA. Asset-backed operations will reference provenance-aware media records. A deterministic compiler will validate timing, asset access, and parameters before translating operations to FFmpeg or another renderer.
 
 The AI layer must never generate shell commands, storage credentials, or unrestricted renderer arguments.
 

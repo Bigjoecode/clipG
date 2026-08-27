@@ -77,6 +77,39 @@ Wait for an explicit task before implementing a milestone.
 - Do not present mocks, stubs, or conceptual interfaces as completed production features.
 - Keep files focused; avoid giant modules and unrelated changes.
 
+## Source Media Preservation and Editing Control
+
+ClipGenius is an AI-assisted editor and repurposing engine, not a generative
+replacement system. The user's recorded media is the source of truth.
+
+- Preserve original user media as immutable source material. Editing and clip
+  generation must reference, transform, composite, or extract from that source;
+  they must not silently regenerate or replace it.
+- Short-form clips must be derived from the user's source recording unless the
+  user explicitly requests a different source. AI selects moments and editing
+  decisions; it does not synthesize substitute speakers, performances, or
+  events.
+- AI-generated images, video, audio, graphics, and other media are supplemental
+  assets. They may be used only when explicitly requested or when the user has
+  enabled a clearly communicated creative setting that permits them.
+- Every timeline asset must retain provenance that distinguishes original source
+  media, user-uploaded media, AI-generated media, and licensed external media.
+  Edit Plans and render jobs must reference stored assets rather than obscure
+  their origin.
+- User-provided videos, images, audio, logos, overlays, and similar assets are
+  first-class future editing inputs. When their milestone is authorized,
+  instructions may place them by timestamp or by semantic references such as a
+  phrase, topic, speaker, or event found in the source.
+- Editing must be non-destructive. Prompts create validated edit operations and
+  versioned plans or revisions; they never mutate or overwrite original media.
+- Product flows should support both AI-directed editing and precise user
+  direction. The user's chosen level of creative authority must remain explicit,
+  and generated or externally sourced media must never be introduced silently.
+
+These rules define future architecture; they do not authorize early
+implementation of uploads, asset libraries, semantic placement, Edit Plans, or
+rendering before their scheduled milestones.
+
 ## Required Architecture
 
 The intended TypeScript monorepo is:
