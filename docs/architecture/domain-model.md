@@ -2,7 +2,7 @@
 
 ## Scope
 
-Task 002 introduces only the persistence model required by Task 003: users, organizations, and organization memberships. Projects, subscriptions, usage, media, transcripts, AI runs, jobs, renders, and publishing records remain deferred to their milestones.
+Task 002 introduced the persistence model required by Task 003: users, organizations, and organization memberships. Task 004 adds organization-owned project metadata. Subscriptions, usage, media, transcripts, AI runs, jobs, renders, and publishing records remain deferred to their milestones.
 
 ## Relationship model
 
@@ -18,6 +18,13 @@ OrganizationMembership
   |
   1
 Organization
+```
+
+Task 004 extends the tenant relationship without changing its identity model:
+
+```text
+Organization 1 -> many Project
+User         1 -> many Project (creator audit reference, nullable)
 ```
 
 A user can belong to many organizations and an organization can contain many users. `OrganizationMembership` is a first-class entity because role, lifecycle, invitations, and future audit behavior belong to the relationship rather than either parent.
@@ -44,6 +51,12 @@ Membership joins a user to an organization with one of three roles:
 
 The database guarantees that a user has at most one membership per organization. An index on `userId` supports listing a user's organizations. Memberships are deleted if either parent is deleted.
 
+### Project
+
+`Project` is the organization-owned workspace for one future content-production effort. Task 004 stores only its UUID, organization, optional creator audit reference, name, optional description, active/archived lifecycle, and timestamps. It deliberately does not contain source media, upload, transcript, Edit Plan, job, render, or AI state.
+
+Archiving is the normal reversible lifecycle action. Hard deletion is an explicit destructive action restricted by the API to organization owners and administrators. Deleting an organization deletes its projects; deleting a creator preserves the project and clears only the audit reference.
+
 ## Invariants
 
 Database-enforced invariants:
@@ -53,7 +66,10 @@ Database-enforced invariants:
 - organization slugs are unique;
 - membership roles are limited to the PostgreSQL `organization_role` enum;
 - a user cannot have duplicate membership in an organization; and
-- memberships cannot outlive their user or organization.
+- memberships cannot outlive their user or organization;
+- projects cannot outlive their organization;
+- a deleted creator does not delete organization-owned projects; and
+- project status is limited to the PostgreSQL `project_status` enum.
 
 Application-enforced invariants for Task 003:
 
@@ -63,6 +79,13 @@ Application-enforced invariants for Task 003:
 - prevent removal or demotion of the last owner;
 - authorize role changes and organization deletion; and
 - map authenticated provider identities to application users.
+
+Application-enforced invariants for Task 004:
+
+- authorize every project operation through current organization membership;
+- prevent cross-organization project discovery and mutation;
+- allow members to create, read, update, archive, and restore projects; and
+- restrict permanent project deletion to organization owners and administrators.
 
 These rules require transaction context and actor authorization, so encoding partial versions as schema defaults would provide false safety.
 

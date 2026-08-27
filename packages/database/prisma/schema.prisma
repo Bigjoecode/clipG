@@ -15,6 +15,13 @@ enum OrganizationRole {
   @@map("organization_role")
 }
 
+enum ProjectStatus {
+  ACTIVE   @map("active")
+  ARCHIVED @map("archived")
+
+  @@map("project_status")
+}
+
 model User {
   id              String    @id @default(uuid()) @db.Uuid
   email           String    @unique @db.VarChar(320)
@@ -25,6 +32,7 @@ model User {
   updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   organizationMemberships OrganizationMembership[]
+  createdProjects         Project[]                  @relation("ProjectCreator")
 
   @@map("users")
 }
@@ -37,6 +45,7 @@ model Organization {
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   memberships OrganizationMembership[]
+  projects    Project[]
 
   @@map("organizations")
 }
@@ -55,4 +64,22 @@ model OrganizationMembership {
   @@unique([organizationId, userId])
   @@index([userId])
   @@map("organization_memberships")
+}
+
+model Project {
+  id             String        @id @default(uuid()) @db.Uuid
+  organizationId String        @map("organization_id") @db.Uuid
+  createdById    String?       @map("created_by_id") @db.Uuid
+  name           String        @db.VarChar(120)
+  description    String?       @db.Text
+  status         ProjectStatus @default(ACTIVE)
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User?        @relation("ProjectCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, updatedAt])
+  @@index([createdById])
+  @@map("projects")
 }

@@ -40,3 +40,18 @@ export interface OrganizationMember {
 export interface OrganizationDetail extends OrganizationSummary {
   readonly members: readonly OrganizationMember[];
 }
+
+export const projectStatuses = ['ACTIVE', 'ARCHIVED'] as const;
+
+export type ProjectStatus = (typeof projectStatuses)[number];
+
+export interface ProjectSummary {
+  readonly id: string;
+  readonly organizationId: string;
+  readonly createdById: string | null;
+  readonly name: string;
+  readonly description: string | null;
+  readonly status: ProjectStatus;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}

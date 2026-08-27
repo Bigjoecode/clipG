@@ -9,8 +9,9 @@ import {
   updateMemberRole,
   updateOrganization,
 } from '../actions';
+import { createProject } from './projects/actions';
 
-import type { OrganizationDetail } from '@clipgenius/types';
+import type { OrganizationDetail, ProjectSummary } from '@clipgenius/types';
 
 interface OrganizationPageProps {
   readonly params: Promise<{ readonly slug: string }>;
@@ -28,9 +29,14 @@ export default async function OrganizationPage({
     params,
     searchParams,
   ]);
-  const organization = await authenticatedApiRequest<OrganizationDetail>(
-    `/organizations/${encodeURIComponent(slug)}`,
-  );
+  const [organization, projects] = await Promise.all([
+    authenticatedApiRequest<OrganizationDetail>(
+      `/organizations/${encodeURIComponent(slug)}`,
+    ),
+    authenticatedApiRequest<readonly ProjectSummary[]>(
+      `/organizations/${encodeURIComponent(slug)}/projects`,
+    ),
+  ]);
   const canManage =
     organization.role === 'OWNER' || organization.role === 'ADMIN';
 
@@ -49,6 +55,70 @@ export default async function OrganizationPage({
         </span>
       </div>
       <ActionNotice error={error} message={message} />
+
+      <section className="mt-10 grid gap-8 lg:grid-cols-[1.4fr_1fr]">
+        <div>
+          <h2 className="text-xl font-semibold">Projects</h2>
+          <div className="mt-4 space-y-3">
+            {projects.length === 0 ? (
+              <p className="rounded-2xl border border-zinc-800 p-6 text-zinc-400">
+                Create your first project to organize a content production.
+              </p>
+            ) : (
+              projects.map((project) => (
+                <Link
+                  className="flex items-center justify-between rounded-2xl border border-zinc-800 bg-zinc-900/50 p-5 hover:border-violet-700"
+                  href={`/organizations/${organization.slug}/projects/${project.id}`}
+                  key={project.id}
+                >
+                  <span>
+                    <span className="block font-semibold">{project.name}</span>
+                    <span className="mt-1 block text-sm text-zinc-500">
+                      {project.description ?? 'No description'}
+                    </span>
+                  </span>
+                  <span className="rounded-full bg-zinc-800 px-3 py-1 text-xs text-zinc-300">
+                    {project.status}
+                  </span>
+                </Link>
+              ))
+            )}
+          </div>
+        </div>
+
+        <aside className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6">
+          <h2 className="text-lg font-semibold">Create project</h2>
+          <form action={createProject} className="mt-6 space-y-4">
+            <input
+              name="organizationSlug"
+              type="hidden"
+              value={organization.slug}
+            />
+            <label className="block text-sm">
+              Name
+              <input
+                className="mt-2 w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2"
+                maxLength={120}
+                name="name"
+                required
+              />
+            </label>
+            <label className="block text-sm">
+              Description <span className="text-zinc-500">(optional)</span>
+              <textarea
+                className="mt-2 min-h-24 w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2"
+                maxLength={2000}
+                name="description"
+              />
+            </label>
+            <FormSubmitButton
+              className="w-full rounded-xl bg-violet-600 px-4 py-3 font-semibold hover:bg-violet-500"
+              label="Create project"
+              pendingLabel="Creating project..."
+            />
+          </form>
+        </aside>
+      </section>
 
       {canManage ? (
         <section className="mt-10 rounded-2xl border border-zinc-800 p-6">
