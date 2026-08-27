@@ -4,6 +4,7 @@ import {
   parseApiEnvironment,
   parseAuthEnvironment,
   parseDatabaseEnvironment,
+  parseStorageEnvironment,
   parseWebEnvironment,
   parseWorkerEnvironment,
   redisConnectionOptionsFromUrl,
@@ -66,5 +67,15 @@ describe('environment validation', () => {
       tls: {},
       username: 'worker',
     });
+  });
+
+  it('uses a bounded source-video upload configuration', () => {
+    expect(parseStorageEnvironment({})).toEqual({
+      SOURCE_VIDEO_BUCKET: 'clipgenius-source-media',
+      SOURCE_VIDEO_MAX_BYTES: 50 * 1024 * 1024,
+    });
+    expect(() =>
+      parseStorageEnvironment({ SOURCE_VIDEO_MAX_BYTES: '0' }),
+    ).toThrow();
   });
 });

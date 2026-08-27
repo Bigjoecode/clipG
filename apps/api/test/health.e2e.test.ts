@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AppModule } from '../src/app.module.js';
 import { AUTHENTICATION_PROVIDER } from '../src/auth/authentication-provider.js';
 import { DATABASE_CLIENT } from '../src/database/database.module.js';
+import { DIRECT_UPLOAD_STORAGE } from '../src/storage/storage.module.js';
 
 import type { INestApplication } from '@nestjs/common';
 import type { Server } from 'node:http';
@@ -28,6 +29,8 @@ describe('GET /health', () => {
         verifyAccessToken: () =>
           Promise.reject(new Error('Not used by the health endpoint.')),
       })
+      .overrideProvider(DIRECT_UPLOAD_STORAGE)
+      .useValue({})
       .compile();
 
     application = moduleReference.createNestApplication();
@@ -70,6 +73,8 @@ describe('GET /organizations', () => {
       })
       .overrideProvider(AUTHENTICATION_PROVIDER)
       .useValue({ verifyAccessToken })
+      .overrideProvider(DIRECT_UPLOAD_STORAGE)
+      .useValue({})
       .compile();
 
     application = moduleReference.createNestApplication();

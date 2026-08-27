@@ -2,7 +2,7 @@
 
 ## Scope
 
-Task 002 introduced the persistence model required by Task 003: users, organizations, and organization memberships. Task 004 adds organization-owned project metadata. Subscriptions, usage, media, transcripts, AI runs, jobs, renders, and publishing records remain deferred to their milestones.
+Task 002 introduced the persistence model required by Task 003: users, organizations, and organization memberships. Task 004 added organization-owned project metadata. Task 005 adds source-media metadata and upload lifecycle state. Subscriptions, usage, transcripts, AI runs, jobs, renders, and publishing records remain deferred to their milestones.
 
 ## Relationship model
 
@@ -25,6 +25,8 @@ Task 004 extends the tenant relationship without changing its identity model:
 ```text
 Organization 1 -> many Project
 User         1 -> many Project (creator audit reference, nullable)
+Project      1 -> many MediaAsset
+User         1 -> many MediaAsset (uploader audit reference, nullable)
 ```
 
 A user can belong to many organizations and an organization can contain many users. `OrganizationMembership` is a first-class entity because role, lifecycle, invitations, and future audit behavior belong to the relationship rather than either parent.
@@ -57,6 +59,12 @@ The database guarantees that a user has at most one membership per organization.
 
 Archiving is the normal reversible lifecycle action. Hard deletion is an explicit destructive action restricted by the API to organization owners and administrators. Deleting an organization deletes its projects; deleting a creator preserves the project and clears only the audit reference.
 
+### MediaAsset
+
+`MediaAsset` records immutable source-video provenance and the expected object metadata without storing media bytes in PostgreSQL. Task 005 records organization, project, optional uploader, original name, validated MIME type and size, provider/bucket/key, upload status, failure reason, and timestamps.
+
+Upload status is limited to `UPLOAD_PENDING`, `UPLOADED`, and `FAILED`. The API creates a pending record before issuing a direct-storage upload target, then verifies the stored object's exact size and content type before marking it uploaded. Later processing state does not belong in this upload lifecycle enum.
+
 ## Invariants
 
 Database-enforced invariants:
@@ -65,11 +73,15 @@ Database-enforced invariants:
 - user emails are unique;
 - organization slugs are unique;
 - membership roles are limited to the PostgreSQL `organization_role` enum;
-- a user cannot have duplicate membership in an organization; and
+- a user cannot have duplicate membership in an organization;
 - memberships cannot outlive their user or organization;
 - projects cannot outlive their organization;
-- a deleted creator does not delete organization-owned projects; and
-- project status is limited to the PostgreSQL `project_status` enum.
+- a deleted creator does not delete organization-owned projects;
+- project status is limited to the PostgreSQL `project_status` enum;
+- media assets cannot outlive their organization or project;
+- a deleted uploader does not delete organization-owned media metadata;
+- storage object identities are unique per provider, bucket, and key; and
+- media kind and upload status are limited to database enums.
 
 Application-enforced invariants for Task 003:
 
@@ -86,6 +98,15 @@ Application-enforced invariants for Task 004:
 - prevent cross-organization project discovery and mutation;
 - allow members to create, read, update, archive, and restore projects; and
 - restrict permanent project deletion to organization owners and administrators.
+
+Application-enforced invariants for Task 005:
+
+- authorize upload initiation, listing, and completion through project membership;
+- accept only configured video MIME types and bounded file sizes;
+- keep user filenames out of storage paths and generate unpredictable object keys;
+- stream video bytes directly from the browser to object storage;
+- verify stored size and content type before declaring upload success; and
+- preserve source objects rather than overwriting a prior upload path.
 
 These rules require transaction context and actor authorization, so encoding partial versions as schema defaults would provide false safety.
 

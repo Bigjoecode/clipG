@@ -15,3 +15,33 @@ export interface ObjectStorage {
   getObject(key: string): Promise<AsyncIterable<Uint8Array>>;
   putObject(input: PutObjectInput): Promise<StoredObject>;
 }
+
+export interface CreateDirectUploadInput {
+  readonly accessToken: string;
+  readonly contentType: string;
+  readonly key: string;
+}
+
+export interface DirectUploadTarget {
+  readonly bucket: string;
+  readonly chunkSizeBytes: number;
+  readonly endpoint: string;
+  readonly expiresAt: Date;
+  readonly key: string;
+  readonly token: string;
+}
+
+export interface DirectUploadObjectInfo {
+  readonly contentType: string | null;
+  readonly sizeBytes: number;
+}
+
+export interface DirectUploadStorage {
+  createUploadTarget(
+    input: CreateDirectUploadInput,
+  ): Promise<DirectUploadTarget>;
+  getObjectInfo(
+    accessToken: string,
+    key: string,
+  ): Promise<DirectUploadObjectInfo | null>;
+}

@@ -12,3 +12,13 @@ export const CurrentUser = createParamDecorator(
     return request.authenticatedUser;
   },
 );
+
+export const CurrentAccessToken = createParamDecorator(
+  (_data: unknown, context: ExecutionContext): string => {
+    const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
+    if (request.authenticatedAccessToken === undefined) {
+      throw new Error('CurrentAccessToken requires AuthenticationGuard.');
+    }
+    return request.authenticatedAccessToken;
+  },
+);

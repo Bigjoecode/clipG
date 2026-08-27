@@ -74,16 +74,20 @@ The standalone NestJS application is the host for BullMQ processors. Task 001 co
 
 ```text
 1. The web application requests an upload session from the API.
-2. The browser streams media directly to object storage.
-3. The API records media metadata and enqueues analysis.
-4. A worker probes, transcribes, and analyzes the stored media.
-5. AI services produce validated domain data and an Edit Plan.
-6. A video worker translates the Edit Plan into deterministic renderer actions.
-7. Outputs are stored in object storage and referenced from PostgreSQL.
-8. The user receives status and output metadata through the API.
+2. The API validates intent, persists pending metadata, and issues a short-lived upload target.
+3. The browser streams resumable chunks directly to object storage and reports progress.
+4. The API verifies stored size/type and marks the source uploaded.
+5. A later milestone enqueues analysis.
+6. A worker probes, transcribes, and analyzes the stored media.
+7. AI services produce validated domain data and an Edit Plan.
+8. A video worker translates the Edit Plan into deterministic renderer actions.
+9. Outputs are stored in object storage and referenced from PostgreSQL.
+10. The user receives status and output metadata through the API.
 ```
 
 Media bytes should not pass through PostgreSQL or be buffered wholesale in the API.
+
+Task 005 uses private Supabase Storage with signed TUS uploads as the first concrete provider. The browser uploads six-megabyte resumable chunks directly to Storage using a short-lived signature, while membership-aware Storage RLS protects object creation and inspection. Provider-specific code remains behind `DirectUploadStorage`; see [video upload architecture](video-upload.md).
 
 ## Future AI pipeline
 

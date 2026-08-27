@@ -14,6 +14,7 @@
   "dependencies": {
     "@clipgenius/config": "workspace:*",
     "@clipgenius/database": "workspace:*",
+    "@clipgenius/storage": "workspace:*",
     "@clipgenius/types": "workspace:*",
     "@nestjs/common": "^11.2.1",
     "@nestjs/core": "^11.2.1",

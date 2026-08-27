@@ -15,6 +15,7 @@ export interface AuthenticatedRequest {
     readonly authorization?: string | readonly string[];
   };
   authenticatedUser?: AuthenticatedUser;
+  authenticatedAccessToken?: string;
 }
 
 function bearerTokenFromHeader(
@@ -44,6 +45,7 @@ export class AuthenticationGuard implements CanActivate {
     const token = bearerTokenFromHeader(request.headers.authorization);
     request.authenticatedUser =
       await this.authenticationService.authenticate(token);
+    request.authenticatedAccessToken = token;
     return true;
   }
 }

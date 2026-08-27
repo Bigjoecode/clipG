@@ -4,8 +4,13 @@ import { ActionNotice } from '../../../../../components/action-notice';
 import { FormSubmitButton } from '../../../../../components/form-submit-button';
 import { authenticatedApiRequest } from '../../../../../lib/api';
 import { deleteProject, setProjectStatus, updateProject } from '../actions';
+import { SourceVideoUploader } from './source-video-uploader';
 
-import type { OrganizationDetail, ProjectSummary } from '@clipgenius/types';
+import type {
+  MediaAssetSummary,
+  OrganizationDetail,
+  ProjectSummary,
+} from '@clipgenius/types';
 
 interface ProjectPageProps {
   readonly params: Promise<{
@@ -26,12 +31,15 @@ export default async function ProjectPage({
     params,
     searchParams,
   ]);
-  const [organization, project] = await Promise.all([
+  const [organization, project, mediaAssets] = await Promise.all([
     authenticatedApiRequest<OrganizationDetail>(
       `/organizations/${encodeURIComponent(slug)}`,
     ),
     authenticatedApiRequest<ProjectSummary>(
       `/organizations/${encodeURIComponent(slug)}/projects/${encodeURIComponent(projectId)}`,
+    ),
+    authenticatedApiRequest<readonly MediaAssetSummary[]>(
+      `/organizations/${encodeURIComponent(slug)}/projects/${encodeURIComponent(projectId)}/media`,
     ),
   ]);
   const canDelete =
@@ -58,6 +66,43 @@ export default async function ProjectPage({
         </span>
       </div>
       <ActionNotice error={error} message={message} />
+
+      <section className="mt-10 rounded-2xl border border-zinc-800 p-6">
+        <h2 className="font-semibold">Source media</h2>
+        <p className="mt-2 text-sm text-zinc-400">
+          Upload an MP4, MOV, or WebM video. The original file is preserved and
+          uploaded directly to private object storage.
+        </p>
+        {project.status === 'ACTIVE' ? (
+          <SourceVideoUploader
+            organizationSlug={organization.slug}
+            projectId={project.id}
+          />
+        ) : (
+          <p className="mt-5 text-sm text-amber-300">
+            Restore this project before uploading source media.
+          </p>
+        )}
+        <div className="mt-6 space-y-3">
+          {mediaAssets.map((media) => (
+            <div
+              className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-800 bg-zinc-900/40 p-4"
+              key={media.id}
+            >
+              <div>
+                <p className="font-medium">{media.originalName}</p>
+                <p className="mt-1 text-sm text-zinc-500">
+                  {(media.sizeBytes / (1024 * 1024)).toFixed(1)} MB ·{' '}
+                  {media.contentType}
+                </p>
+              </div>
+              <span className="rounded-full bg-zinc-800 px-3 py-1 text-xs">
+                {media.status.replaceAll('_', ' ')}
+              </span>
+            </div>
+          ))}
+        </div>
+      </section>
 
       <section className="mt-10 rounded-2xl border border-zinc-800 p-6">
         <h2 className="font-semibold">Project details</h2>

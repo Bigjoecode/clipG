@@ -55,3 +55,39 @@ export interface ProjectSummary {
   readonly createdAt: string;
   readonly updatedAt: string;
 }
+
+export const mediaKinds = ['SOURCE_VIDEO'] as const;
+export const mediaStatuses = ['UPLOAD_PENDING', 'UPLOADED', 'FAILED'] as const;
+
+export type MediaKind = (typeof mediaKinds)[number];
+export type MediaStatus = (typeof mediaStatuses)[number];
+
+export interface MediaAssetSummary {
+  readonly id: string;
+  readonly organizationId: string;
+  readonly projectId: string;
+  readonly uploadedById: string | null;
+  readonly kind: MediaKind;
+  readonly status: MediaStatus;
+  readonly originalName: string;
+  readonly contentType: string;
+  readonly sizeBytes: number;
+  readonly uploadedAt: string | null;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+export interface ResumableUploadTarget {
+  readonly protocol: 'tus';
+  readonly endpoint: string;
+  readonly token: string;
+  readonly bucket: string;
+  readonly key: string;
+  readonly chunkSizeBytes: number;
+  readonly expiresAt: string;
+}
+
+export interface SourceVideoUploadSession {
+  readonly media: MediaAssetSummary;
+  readonly upload: ResumableUploadTarget;
+}

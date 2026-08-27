@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { AuthenticationModule } from './auth/authentication.module.js';
 import { DatabaseModule } from './database/database.module.js';
 import { HealthController } from './health/health.controller.js';
+import { MediaModule } from './media/media.module.js';
 import { OrganizationsModule } from './organizations/organizations.module.js';
 import { ProjectsModule } from './projects/projects.module.js';
 
@@ -13,6 +14,7 @@ import { ProjectsModule } from './projects/projects.module.js';
     AuthenticationModule,
     OrganizationsModule,
     ProjectsModule,
+    MediaModule,
   ],
 })
 export class AppModule {}

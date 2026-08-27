@@ -27,6 +27,18 @@ export const workerEnvironmentSchema = z.object({
   REDIS_URL: url.default('redis://localhost:6379'),
 });
 
+export const storageEnvironmentSchema = z.object({
+  SOURCE_VIDEO_BUCKET: z
+    .literal('clipgenius-source-media')
+    .default('clipgenius-source-media'),
+  SOURCE_VIDEO_MAX_BYTES: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(50 * 1024 * 1024 * 1024)
+    .default(50 * 1024 * 1024),
+});
+
 export const webEnvironmentSchema = z.object({
   API_URL: url.default('http://localhost:4000'),
   NEXT_PUBLIC_APP_URL: url.default('http://localhost:3000'),
@@ -43,6 +55,7 @@ export type AuthEnvironment = z.infer<typeof authEnvironmentSchema>;
 export type DatabaseEnvironment = z.infer<typeof databaseEnvironmentSchema>;
 export type WebEnvironment = z.infer<typeof webEnvironmentSchema>;
 export type WorkerEnvironment = z.infer<typeof workerEnvironmentSchema>;
+export type StorageEnvironment = z.infer<typeof storageEnvironmentSchema>;
 
 export function parseApiEnvironment(
   source: Record<string, string | undefined>,
@@ -72,6 +85,12 @@ export function parseWorkerEnvironment(
   source: Record<string, string | undefined>,
 ): WorkerEnvironment {
   return workerEnvironmentSchema.parse(source);
+}
+
+export function parseStorageEnvironment(
+  source: Record<string, string | undefined>,
+): StorageEnvironment {
+  return storageEnvironmentSchema.parse(source);
 }
 
 export interface RedisConnectionOptions {

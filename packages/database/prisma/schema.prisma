@@ -22,6 +22,20 @@ enum ProjectStatus {
   @@map("project_status")
 }
 
+enum MediaKind {
+  SOURCE_VIDEO @map("source_video")
+
+  @@map("media_kind")
+}
+
+enum MediaStatus {
+  UPLOAD_PENDING @map("upload_pending")
+  UPLOADED       @map("uploaded")
+  FAILED         @map("failed")
+
+  @@map("media_status")
+}
+
 model User {
   id              String    @id @default(uuid()) @db.Uuid
   email           String    @unique @db.VarChar(320)
@@ -32,7 +46,8 @@ model User {
   updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   organizationMemberships OrganizationMembership[]
-  createdProjects         Project[]                  @relation("ProjectCreator")
+  createdProjects         Project[]                @relation("ProjectCreator")
+  uploadedMedia           MediaAsset[]             @relation("MediaUploader")
 
   @@map("users")
 }
@@ -46,6 +61,7 @@ model Organization {
 
   memberships OrganizationMembership[]
   projects    Project[]
+  mediaAssets MediaAsset[]
 
   @@map("organizations")
 }
@@ -78,8 +94,38 @@ model Project {
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   createdBy    User?        @relation("ProjectCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  mediaAssets  MediaAsset[]
 
   @@index([organizationId, updatedAt])
   @@index([createdById])
   @@map("projects")
+}
+
+model MediaAsset {
+  id              String      @id @default(uuid()) @db.Uuid
+  organizationId  String      @map("organization_id") @db.Uuid
+  projectId       String      @map("project_id") @db.Uuid
+  uploadedById    String?     @map("uploaded_by_id") @db.Uuid
+  kind            MediaKind   @default(SOURCE_VIDEO)
+  status          MediaStatus @default(UPLOAD_PENDING)
+  originalName    String      @map("original_name") @db.VarChar(255)
+  contentType     String      @map("content_type") @db.VarChar(100)
+  sizeBytes       BigInt      @map("size_bytes")
+  storageProvider String      @map("storage_provider") @db.VarChar(32)
+  storageBucket   String      @map("storage_bucket") @db.VarChar(100)
+  storageKey      String      @map("storage_key") @db.Text
+  failureReason   String?     @map("failure_reason") @db.VarChar(255)
+  uploadedAt      DateTime?   @map("uploaded_at") @db.Timestamptz(3)
+  createdAt       DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  uploadedBy   User?        @relation("MediaUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@unique([storageProvider, storageBucket, storageKey])
+  @@index([organizationId, createdAt])
+  @@index([projectId, status])
+  @@index([uploadedById])
+  @@map("media_assets")
 }
