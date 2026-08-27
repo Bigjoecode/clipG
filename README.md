@@ -2,25 +2,41 @@
 
 ClipGenius is an AI Content Production Engine that turns one raw video into polished, platform-optimized content.
 
-This repository currently contains the Task 001 engineering foundation only. Product features such as upload, transcription, AI editing, rendering, billing, and publishing are intentionally not implemented yet.
+The repository currently includes the engineering foundation, PostgreSQL domain
+model, Supabase authentication and organizations, projects, and secure source-video
+uploads. Transcription, AI editing, rendering, billing, and publishing are not yet
+implemented.
 
 ## Prerequisites
 
 - Node.js 24 or newer
 - Corepack
-- Docker Desktop with Docker Compose (for PostgreSQL and Redis)
+- A Supabase project for the current hosted PostgreSQL, authentication, and Storage workflow
+- Docker Desktop with Docker Compose only when using local PostgreSQL and Redis
 
 ## Local setup
 
-```bash
+```powershell
 corepack enable
-pnpm install
+corepack pnpm install
 copy .env.example .env
-pnpm services:up
-pnpm dev
+corepack pnpm db:migrate:deploy
+corepack pnpm dev
 ```
 
-On macOS or Linux, use `cp .env.example .env` instead of `copy`.
+Set the Supabase URL, publishable keys, and PostgreSQL connection string in `.env`
+before applying migrations. On macOS or Linux, use `cp .env.example .env` instead
+of `copy`. Docker is not required when using hosted Supabase.
+
+For source-video uploads, run
+[`infrastructure/supabase/source-media.sql`](infrastructure/supabase/source-media.sql)
+once in the Supabase SQL Editor after the database migrations. It provisions the
+private Storage bucket and its row-level security policies. The optional
+`SOURCE_VIDEO_*` variables have safe defaults documented in `.env.example`.
+
+To use local PostgreSQL and Redis instead, start Docker Desktop and run
+`corepack pnpm services:up` before applying migrations. Supabase Auth and Storage
+are still required for the currently implemented authentication and upload flow.
 
 The services start at:
 
@@ -48,15 +64,15 @@ and CI environments that support Turborepo's native executable.
 
 ## Database workflow
 
-After copying `.env.example` to `.env` and starting PostgreSQL:
+After configuring `.env` and making PostgreSQL available:
 
 ```bash
-pnpm db:validate
-pnpm db:generate
-pnpm db:migrate
+corepack pnpm db:validate
+corepack pnpm db:generate
+corepack pnpm db:migrate
 ```
 
-Use `pnpm db:migrate:deploy` to apply committed migrations in staging or
+Use `corepack pnpm db:migrate:deploy` to apply committed migrations in staging or
 production. The current identity and tenancy model is documented in
 [`docs/architecture/domain-model.md`](docs/architecture/domain-model.md).
 

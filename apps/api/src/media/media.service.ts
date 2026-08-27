@@ -50,6 +50,13 @@ function asMediaStatus(status: DatabaseMediaStatus): MediaStatus {
   return status;
 }
 
+function normalizedContentType(contentType: string | null): string | null {
+  if (contentType === null) {
+    return null;
+  }
+  return contentType.split(';', 1)[0]?.trim().toLowerCase() ?? null;
+}
+
 @Injectable()
 export class MediaService {
   public constructor(
@@ -187,7 +194,8 @@ export class MediaService {
     const expectedSize = Number(media.sizeBytes);
     if (
       objectInfo.sizeBytes !== expectedSize ||
-      objectInfo.contentType !== media.contentType
+      normalizedContentType(objectInfo.contentType) !==
+        normalizedContentType(media.contentType)
     ) {
       await this.database.mediaAsset.update({
         data: {

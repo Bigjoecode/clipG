@@ -1,6 +1,10 @@
 import type { PrismaClient } from '@clipgenius/database';
 import type { DirectUploadStorage } from '@clipgenius/storage';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { MediaService } from '../src/media/media.service.js';
@@ -131,6 +135,112 @@ describe('MediaService', () => {
     ).rejects.toThrow(NotFoundException);
   });
 
+  it('rejects files larger than the configured source-video limit', async () => {
+    await expect(
+      service.initiateSourceVideoUpload(
+        actor,
+        'access-token',
+        'creator-studio',
+        projectId,
+        {
+          contentType: 'video/mp4',
+          fileName: 'oversized.mp4',
+          sizeBytes: 50 * 1024 * 1024 + 1,
+        },
+      ),
+    ).rejects.toThrow(BadRequestException);
+    expect(findMembership).not.toHaveBeenCalled();
+    expect(createMedia).not.toHaveBeenCalled();
+  });
+
+  it('rejects uploads to archived projects before creating media', async () => {
+    findMembership.mockResolvedValueOnce({ organizationId });
+    findProject.mockResolvedValueOnce({
+      id: projectId,
+      organizationId,
+      status: 'ARCHIVED',
+    });
+
+    await expect(
+      service.initiateSourceVideoUpload(
+        actor,
+        'access-token',
+        'creator-studio',
+        projectId,
+        {
+          contentType: 'video/mp4',
+          fileName: 'sermon.mp4',
+          sizeBytes: 1_024,
+        },
+      ),
+    ).rejects.toThrow(ConflictException);
+    expect(createMedia).not.toHaveBeenCalled();
+  });
+
+  it('returns an already completed upload without touching storage again', async () => {
+    const uploaded = mediaRecord({
+      status: 'UPLOADED',
+      uploadedAt: new Date('2026-08-27T12:05:00.000Z'),
+    });
+    findMembership.mockResolvedValueOnce({ organizationId });
+    findProject.mockResolvedValueOnce({
+      id: projectId,
+      organizationId,
+      status: 'ACTIVE',
+    });
+    findMedia.mockResolvedValueOnce(uploaded);
+
+    const result = await service.completeSourceVideoUpload(
+      actor,
+      'access-token',
+      'creator-studio',
+      projectId,
+      mediaId,
+    );
+
+    expect(result.status).toBe('UPLOADED');
+    expect(getObjectInfo).not.toHaveBeenCalled();
+    expect(updateMedia).not.toHaveBeenCalled();
+  });
+
+  it('accepts an equivalent provider content type with parameters', async () => {
+    const media = mediaRecord();
+    findMembership.mockResolvedValueOnce({ organizationId });
+    findProject.mockResolvedValueOnce({
+      id: projectId,
+      organizationId,
+      status: 'ACTIVE',
+    });
+    findMedia.mockResolvedValueOnce(media);
+    getObjectInfo.mockResolvedValueOnce({
+      contentType: 'Video/MP4; charset=binary',
+      sizeBytes: 1_024,
+    });
+    updateMedia.mockResolvedValueOnce(
+      mediaRecord({
+        status: 'UPLOADED',
+        uploadedAt: new Date('2026-08-27T12:05:00.000Z'),
+      }),
+    );
+
+    const result = await service.completeSourceVideoUpload(
+      actor,
+      'access-token',
+      'creator-studio',
+      projectId,
+      mediaId,
+    );
+
+    expect(result.status).toBe('UPLOADED');
+    expect(updateMedia.mock.calls[0]?.[0]).toMatchObject({
+      data: {
+        failureReason: null,
+        status: 'UPLOADED',
+      },
+      where: { id: mediaId },
+    });
+  });
+
   it('marks an upload failed when stored metadata does not match', async () => {
     const media = mediaRecord();
     findMembership.mockResolvedValueOnce({ organizationId });
@@ -158,6 +268,39 @@ describe('MediaService', () => {
     expect(updateMedia).toHaveBeenCalledWith({
       data: {
         failureReason: 'Stored object metadata did not match the upload.',
+        status: 'FAILED',
+      },
+      where: { id: mediaId },
+    });
+  });
+
+  it('marks a pending upload failed after browser retries are exhausted', async () => {
+    const pending = mediaRecord();
+    findMembership.mockResolvedValueOnce({ organizationId });
+    findProject.mockResolvedValueOnce({
+      id: projectId,
+      organizationId,
+      status: 'ACTIVE',
+    });
+    findMedia.mockResolvedValueOnce(pending);
+    updateMedia.mockResolvedValueOnce(
+      mediaRecord({
+        failureReason: 'The browser upload exhausted its retry attempts.',
+        status: 'FAILED',
+      }),
+    );
+
+    const result = await service.failSourceVideoUpload(
+      actor,
+      'creator-studio',
+      projectId,
+      mediaId,
+    );
+
+    expect(result.status).toBe('FAILED');
+    expect(updateMedia).toHaveBeenCalledWith({
+      data: {
+        failureReason: 'The browser upload exhausted its retry attempts.',
         status: 'FAILED',
       },
       where: { id: mediaId },
