@@ -44,18 +44,26 @@ export async function authenticatedApiRequest<T>(
   }
 
   const environment = getWebEnvironment();
-  const response = await fetch(`${environment.API_URL}${path}`, {
-    ...init,
-    cache: 'no-store',
-    headers: {
-      Accept: 'application/json',
-      Authorization: `Bearer ${sessionData.session.access_token}`,
-      ...(init?.body === undefined
-        ? {}
-        : { 'Content-Type': 'application/json' }),
-      ...init?.headers,
-    },
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${environment.API_URL}${path}`, {
+      ...init,
+      cache: 'no-store',
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${sessionData.session.access_token}`,
+        ...(init?.body === undefined
+          ? {}
+          : { 'Content-Type': 'application/json' }),
+        ...init?.headers,
+      },
+    });
+  } catch {
+    throw new ApiRequestError(
+      'The API connection was interrupted. Refresh to check whether the change completed before trying again.',
+      503,
+    );
+  }
 
   if (!response.ok) {
     let body: ApiErrorBody | null = null;
