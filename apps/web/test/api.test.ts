@@ -24,8 +24,24 @@ afterEach(() => {
 });
 
 describe('authenticatedApiRequest', () => {
-  it('turns a reset API connection into a recoverable service error', async () => {
-    vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(
+  it('retries a read request once after a reset API connection', async () => {
+    const response = new Response(JSON.stringify([{ id: 'organization-id' }]), {
+      headers: { 'Content-Type': 'application/json' },
+      status: 200,
+    });
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockRejectedValueOnce(new TypeError('fetch failed'))
+      .mockResolvedValueOnce(response);
+
+    await expect(authenticatedApiRequest('/organizations')).resolves.toEqual([
+      { id: 'organization-id' },
+    ]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('turns repeated connection resets into a recoverable service error', async () => {
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(
       new TypeError('fetch failed'),
     );
 
@@ -37,5 +53,19 @@ describe('authenticatedApiRequest', () => {
         status: 503,
       }),
     );
+  });
+
+  it('does not retry an ambiguous failed write request', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockRejectedValue(new TypeError('fetch failed'));
+
+    await expect(
+      authenticatedApiRequest('/organizations', {
+        body: JSON.stringify({ name: 'Creator Studio' }),
+        method: 'POST',
+      }),
+    ).rejects.toBeInstanceOf(ApiRequestError);
+    expect(fetchMock).toHaveBeenCalledOnce();
   });
 });

@@ -27,6 +27,26 @@ function errorMessage(body: ApiErrorBody | null): string {
     : 'The request could not be completed.';
 }
 
+const apiReadRetryDelayMilliseconds = 250;
+
+function wait(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+async function fetchApi(url: string, init: RequestInit): Promise<Response> {
+  try {
+    return await fetch(url, init);
+  } catch (error) {
+    const method = init.method?.toUpperCase() ?? 'GET';
+    if (method !== 'GET' && method !== 'HEAD') {
+      throw error;
+    }
+
+    await wait(apiReadRetryDelayMilliseconds);
+    return fetch(url, init);
+  }
+}
+
 export async function authenticatedApiRequest<T>(
   path: string,
   init?: RequestInit,
@@ -46,7 +66,7 @@ export async function authenticatedApiRequest<T>(
   const environment = getWebEnvironment();
   let response: Response;
   try {
-    response = await fetch(`${environment.API_URL}${path}`, {
+    response = await fetchApi(`${environment.API_URL}${path}`, {
       ...init,
       cache: 'no-store',
       headers: {
