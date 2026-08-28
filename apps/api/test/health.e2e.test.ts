@@ -1,4 +1,4 @@
-import { mediaProbeQueueName } from '@clipgenius/types';
+import { mediaProbeQueueName, transcriptionQueueName } from '@clipgenius/types';
 import { getQueueToken } from '@nestjs/bullmq';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
@@ -36,6 +36,8 @@ describe('GET /health', () => {
       // The API boots as a queue producer, but an HTTP smoke test must not need
       // a live Redis to answer a request.
       .overrideProvider(getQueueToken(mediaProbeQueueName))
+      .useValue({ add: vi.fn() })
+      .overrideProvider(getQueueToken(transcriptionQueueName))
       .useValue({ add: vi.fn() })
       .compile();
 
@@ -84,6 +86,8 @@ describe('GET /organizations', () => {
       // The API boots as a queue producer, but an HTTP smoke test must not need
       // a live Redis to answer a request.
       .overrideProvider(getQueueToken(mediaProbeQueueName))
+      .useValue({ add: vi.fn() })
+      .overrideProvider(getQueueToken(transcriptionQueueName))
       .useValue({ add: vi.fn() })
       .compile();
 

@@ -15,6 +15,14 @@
     "build": "tsc -p tsconfig.build.json",
     "dev": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
     "lint": "eslint src",
+    "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "openai": "7.8.0",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "vitest": "4.1.11"
   }
 }

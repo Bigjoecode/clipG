@@ -77,6 +77,8 @@ export interface MediaAssetSummary {
   readonly updatedAt: string;
   readonly metadata: MediaTechnicalMetadata | null;
   readonly probe: MediaJobSummary | null;
+  readonly transcript: TranscriptSummary | null;
+  readonly transcription: MediaJobSummary | null;
 }
 
 export interface ResumableUploadTarget {
@@ -94,7 +96,7 @@ export interface SourceVideoUploadSession {
   readonly upload: ResumableUploadTarget;
 }
 
-export const mediaJobTypes = ['MEDIA_PROBE'] as const;
+export const mediaJobTypes = ['MEDIA_PROBE', 'TRANSCRIPTION'] as const;
 export const mediaJobStatuses = [
   'QUEUED',
   'RUNNING',
@@ -143,4 +145,42 @@ export interface MediaProbeJobData {
   readonly mediaAssetId: string;
   readonly organizationId: string;
   readonly projectId: string;
+}
+
+export const transcriptionQueueName = 'transcription';
+
+export interface TranscriptionJobData {
+  readonly mediaJobId: string;
+  readonly mediaAssetId: string;
+  readonly organizationId: string;
+  readonly projectId: string;
+}
+
+export interface TranscriptSummary {
+  readonly id: string;
+  readonly language: string | null;
+  readonly provider: string;
+  readonly model: string;
+  readonly segmentCount: number;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+export interface TranscriptSegment {
+  readonly id: string;
+  readonly index: number;
+  readonly startSeconds: number;
+  readonly endSeconds: number;
+  readonly speaker: string | null;
+  readonly text: string;
+}
+
+export interface TranscriptDetail extends TranscriptSummary {
+  readonly organizationId: string;
+  readonly projectId: string;
+  readonly mediaAssetId: string;
+  readonly originalName: string;
+  readonly text: string;
+  readonly durationSeconds: number | null;
+  readonly segments: readonly TranscriptSegment[];
 }

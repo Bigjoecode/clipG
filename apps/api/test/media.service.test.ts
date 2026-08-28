@@ -1,6 +1,9 @@
 import type { PrismaClient } from '@clipgenius/database';
 import type { DirectUploadStorage } from '@clipgenius/storage';
-import type { MediaProbeJobData } from '@clipgenius/types';
+import type {
+  MediaProbeJobData,
+  TranscriptionJobData,
+} from '@clipgenius/types';
 import {
   BadRequestException,
   ConflictException,
@@ -21,6 +24,7 @@ const organizationId = '5d4d3a1a-b0ed-4c63-9f3f-2f7b7a716a29';
 const projectId = '5ea74442-0c18-4e90-a009-300fa2f39cbd';
 const mediaId = 'c728fe4f-2b0d-4a28-8191-608c52e50d88';
 const mediaJobId = '3f0c2b6e-1a58-4a4f-9d1b-6f2c0d5e7a11';
+const transcriptionJobId = 'bd17896f-4f58-47cf-8afb-c5edbb33f90e';
 
 function probeJob(overrides: Record<string, unknown> = {}) {
   return {
@@ -66,9 +70,20 @@ function mediaRecord(overrides: Record<string, unknown> = {}) {
     storageBucket: 'clipgenius-source-media',
     storageKey: `organizations/${organizationId}/projects/${projectId}/source/${mediaId}/source.mp4`,
     storageProvider: 'supabase',
+    transcript: null,
     updatedAt: new Date('2026-08-27T12:00:00.000Z'),
     uploadedAt: null,
     uploadedById: actor.id,
+    ...overrides,
+  };
+}
+
+function transcriptionJob(overrides: Record<string, unknown> = {}) {
+  return {
+    ...probeJob({
+      id: transcriptionJobId,
+      type: 'TRANSCRIPTION',
+    }),
     ...overrides,
   };
 }
@@ -85,6 +100,8 @@ describe('MediaService', () => {
   const upsertJob = vi.fn();
   const updateJob = vi.fn();
   const addToQueue = vi.fn();
+  const addToTranscriptionQueue = vi.fn();
+  const findTranscript = vi.fn();
   const database = {
     mediaAsset: {
       create: createMedia,
@@ -96,6 +113,7 @@ describe('MediaService', () => {
     mediaJob: { update: updateJob, upsert: upsertJob },
     organizationMembership: { findFirst: findMembership },
     project: { findFirst: findProject },
+    transcript: { findUnique: findTranscript },
   } as unknown as PrismaClient;
   const storage = {
     createUploadTarget,
@@ -111,12 +129,15 @@ describe('MediaService', () => {
     },
     probeQueue,
     { attempts: 3 },
+    { add: addToTranscriptionQueue } as unknown as Queue<TranscriptionJobData>,
+    { attempts: 3 },
   );
 
   beforeEach(() => {
     vi.clearAllMocks();
     upsertJob.mockResolvedValue(probeJob());
     addToQueue.mockResolvedValue({ id: mediaJobId });
+    addToTranscriptionQueue.mockResolvedValue({ id: transcriptionJobId });
   });
 
   it('creates a tenant-scoped signed resumable upload session', async () => {
@@ -537,6 +558,122 @@ describe('MediaService', () => {
       height: 1080,
       videoCodec: 'h264',
       width: 1920,
+    });
+  });
+
+  it('queues transcription only after a successful audio probe', async () => {
+    const analyzed = mediaRecord({
+      hasAudio: true,
+      jobs: [probeJob({ status: 'SUCCEEDED' })],
+      probedAt: new Date('2026-08-27T12:06:00.000Z'),
+      status: 'UPLOADED',
+    });
+    findMembership.mockResolvedValue({ organizationId });
+    findProject.mockResolvedValue({
+      id: projectId,
+      organizationId,
+      status: 'ACTIVE',
+    });
+    findMedia.mockResolvedValueOnce(analyzed).mockResolvedValueOnce({
+      ...analyzed,
+      jobs: [
+        probeJob({ status: 'SUCCEEDED' }),
+        transcriptionJob({ status: 'QUEUED' }),
+      ],
+    });
+    upsertJob.mockResolvedValueOnce(transcriptionJob());
+
+    const result = await service.requestTranscription(
+      actor,
+      'creator-studio',
+      projectId,
+      mediaId,
+    );
+
+    expect(addToTranscriptionQueue).toHaveBeenCalledWith(
+      'transcribe',
+      {
+        mediaAssetId: mediaId,
+        mediaJobId: transcriptionJobId,
+        organizationId,
+        projectId,
+      },
+      expect.objectContaining({ attempts: 3, jobId: transcriptionJobId }),
+    );
+    expect(result.transcription).toMatchObject({ status: 'QUEUED' });
+  });
+
+  it('rejects transcription when the analyzed video has no audio', async () => {
+    findMembership.mockResolvedValueOnce({ organizationId });
+    findProject.mockResolvedValueOnce({
+      id: projectId,
+      organizationId,
+      status: 'ACTIVE',
+    });
+    findMedia.mockResolvedValueOnce(
+      mediaRecord({
+        hasAudio: false,
+        jobs: [probeJob({ status: 'SUCCEEDED' })],
+        probedAt: new Date('2026-08-27T12:06:00.000Z'),
+        status: 'UPLOADED',
+      }),
+    );
+
+    await expect(
+      service.requestTranscription(actor, 'creator-studio', projectId, mediaId),
+    ).rejects.toThrow(ConflictException);
+    expect(addToTranscriptionQueue).not.toHaveBeenCalled();
+  });
+
+  it('returns the tenant-scoped transcript with ordered segments', async () => {
+    findMembership.mockResolvedValueOnce({ organizationId });
+    findProject.mockResolvedValueOnce({
+      id: projectId,
+      organizationId,
+      status: 'ACTIVE',
+    });
+    findMedia.mockResolvedValueOnce(mediaRecord({ status: 'UPLOADED' }));
+    findTranscript.mockResolvedValueOnce({
+      createdAt: new Date('2026-08-28T10:00:00.000Z'),
+      durationSeconds: 65,
+      id: 'c25099e9-6d42-4c4e-bd89-439849e958e1',
+      language: 'en',
+      mediaAssetId: mediaId,
+      model: 'gpt-4o-transcribe-diarize',
+      organizationId,
+      projectId,
+      provider: 'openai',
+      segments: [
+        {
+          endSeconds: 3.2,
+          id: 'd1faf8b0-319a-48f4-a6ed-bdf24a307a6c',
+          index: 0,
+          speaker: 'A',
+          startSeconds: 0,
+          text: 'Welcome everyone.',
+        },
+      ],
+      text: 'Welcome everyone.',
+      updatedAt: new Date('2026-08-28T10:00:00.000Z'),
+    });
+
+    const result = await service.getTranscript(
+      actor,
+      'creator-studio',
+      projectId,
+      mediaId,
+    );
+
+    expect(findTranscript).toHaveBeenCalledWith(
+      expect.objectContaining({
+        include: { segments: { orderBy: { index: 'asc' } } },
+        where: { mediaAssetId: mediaId },
+      }),
+    );
+    expect(result).toMatchObject({
+      originalName: 'sermon.mp4',
+      segmentCount: 1,
+      text: 'Welcome everyone.',
     });
   });
 

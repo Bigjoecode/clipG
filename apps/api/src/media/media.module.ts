@@ -1,6 +1,7 @@
 import {
   parseMediaProbeEnvironment,
   parseStorageEnvironment,
+  parseTranscriptionJobEnvironment,
 } from '@clipgenius/config';
 import { Module } from '@nestjs/common';
 
@@ -11,9 +12,11 @@ import { MediaController } from './media.controller.js';
 import {
   MEDIA_PROBE_CONFIGURATION,
   MEDIA_UPLOAD_CONFIGURATION,
+  TRANSCRIPTION_CONFIGURATION,
   MediaService,
   type MediaProbeConfiguration,
   type MediaUploadConfiguration,
+  type TranscriptionConfiguration,
 } from './media.service.js';
 
 @Module({
@@ -28,6 +31,13 @@ import {
           bucket: environment.SOURCE_VIDEO_BUCKET,
           maxSourceVideoBytes: environment.SOURCE_VIDEO_MAX_BYTES,
         };
+      },
+    },
+    {
+      provide: TRANSCRIPTION_CONFIGURATION,
+      useFactory: (): TranscriptionConfiguration => {
+        const environment = parseTranscriptionJobEnvironment(process.env);
+        return { attempts: environment.TRANSCRIPTION_ATTEMPTS };
       },
     },
     {

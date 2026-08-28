@@ -8,13 +8,13 @@ import { Inject, Logger } from '@nestjs/common';
 import { UnrecoverableError, type Job } from 'bullmq';
 
 import { DATABASE_CLIENT } from '../database/database.module.js';
+import { SERVER_OBJECT_READER } from '../storage/storage-reader.module.js';
 
 import {
   discardTemporaryMedia,
   downloadToTemporaryFile,
 } from './media-download.js';
 
-export const SERVER_OBJECT_READER = Symbol('SERVER_OBJECT_READER');
 export const VIDEO_PROBE = Symbol('VIDEO_PROBE');
 export const MEDIA_PROBE_SETTINGS = Symbol('MEDIA_PROBE_SETTINGS');
 

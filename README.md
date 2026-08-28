@@ -4,8 +4,9 @@ ClipGenius is an AI Content Production Engine that turns one raw video into poli
 
 The repository currently includes the engineering foundation, PostgreSQL domain
 model, Supabase authentication and organizations, projects, secure source-video
-uploads, and background media analysis. Transcription, AI editing, rendering,
-billing, and publishing are not yet implemented.
+uploads, background media analysis, and timestamped transcription. Content
+intelligence, AI editing, rendering, billing, and publishing are not yet
+implemented.
 
 ## Prerequisites
 
@@ -41,6 +42,13 @@ key. That key bypasses Storage row-level security: keep it out of the browser an
 out of any `NEXT_PUBLIC_` variable. FFmpeg does not need to be installed — the
 worker uses the platform ffprobe binary bundled with `@clipgenius/video`. See
 [media processing architecture](docs/architecture/media-processing.md).
+
+Timestamped transcription additionally requires a server-only `OPENAI_API_KEY`.
+The worker extracts a compact mono speech track with its bundled FFmpeg binary,
+then sends only that audio to the configured transcription provider. Never put
+the key in a `NEXT_PUBLIC_` variable. The model, retry, concurrency, size, and
+timeout defaults are documented in `.env.example`; see the
+[transcription architecture](docs/architecture/transcription.md).
 
 To use local PostgreSQL and Redis instead, start Docker Desktop and run
 `corepack pnpm services:up` before applying migrations. Supabase Auth and Storage

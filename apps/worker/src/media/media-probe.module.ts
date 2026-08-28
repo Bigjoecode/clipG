@@ -1,19 +1,12 @@
-import {
-  parseAuthEnvironment,
-  parseMediaProcessingEnvironment,
-  parseStorageEnvironment,
-} from '@clipgenius/config';
+import { parseMediaProcessingEnvironment } from '@clipgenius/config';
 import { mediaProbeQueueName } from '@clipgenius/types';
 import { FfprobeVideoProbe, type VideoProbe } from '@clipgenius/video';
 import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 
-import { SupabaseServerObjectReader } from '../storage/supabase-server-object-reader.js';
-
 import {
   MEDIA_PROBE_SETTINGS,
   MediaProbeProcessor,
-  SERVER_OBJECT_READER,
   VIDEO_PROBE,
   type MediaProbeSettings,
 } from './media-probe.processor.js';
@@ -29,19 +22,6 @@ const signedUrlLifetimeSeconds = 60 * 60;
 @Module({
   imports: [BullModule.registerQueue({ name: mediaProbeQueueName })],
   providers: [
-    {
-      provide: SERVER_OBJECT_READER,
-      useFactory: (): SupabaseServerObjectReader => {
-        const auth = parseAuthEnvironment(process.env);
-        const storage = parseStorageEnvironment(process.env);
-        const processing = parseMediaProcessingEnvironment(process.env);
-        return new SupabaseServerObjectReader(
-          auth.SUPABASE_URL,
-          processing.SUPABASE_SECRET_KEY,
-          storage.SOURCE_VIDEO_BUCKET,
-        );
-      },
-    },
     {
       provide: VIDEO_PROBE,
       useFactory: (): VideoProbe => {

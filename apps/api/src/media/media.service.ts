@@ -8,9 +8,10 @@ import {
   type MediaKind as DatabaseMediaKind,
   type MediaStatus as DatabaseMediaStatus,
   type PrismaClient,
+  type Transcript as DatabaseTranscript,
 } from '@clipgenius/database';
 import type { DirectUploadStorage } from '@clipgenius/storage';
-import { mediaProbeQueueName } from '@clipgenius/types';
+import { mediaProbeQueueName, transcriptionQueueName } from '@clipgenius/types';
 import { InjectQueue } from '@nestjs/bullmq';
 import {
   BadRequestException,
@@ -39,6 +40,9 @@ import type {
   MediaStatus,
   MediaTechnicalMetadata,
   SourceVideoUploadSession,
+  TranscriptDetail,
+  TranscriptSummary,
+  TranscriptionJobData,
 } from '@clipgenius/types';
 
 export interface MediaUploadConfiguration {
@@ -50,17 +54,35 @@ export interface MediaProbeConfiguration {
   readonly attempts: number;
 }
 
+export interface TranscriptionConfiguration {
+  readonly attempts: number;
+}
+
 export const MEDIA_UPLOAD_CONFIGURATION = Symbol('MEDIA_UPLOAD_CONFIGURATION');
 export const MEDIA_PROBE_CONFIGURATION = Symbol('MEDIA_PROBE_CONFIGURATION');
+export const TRANSCRIPTION_CONFIGURATION = Symbol(
+  'TRANSCRIPTION_CONFIGURATION',
+);
 
 type MediaAssetWithJobs = DatabaseMediaAsset & {
   readonly jobs?: readonly DatabaseMediaJob[];
+  readonly transcript?: TranscriptWithCount | null;
+};
+
+type TranscriptWithCount = DatabaseTranscript & {
+  readonly _count: { readonly segments: number };
 };
 
 function probeJobOf(
   jobs: readonly DatabaseMediaJob[] | undefined,
 ): DatabaseMediaJob | undefined {
   return jobs?.find((job) => job.type === 'MEDIA_PROBE');
+}
+
+function transcriptionJobOf(
+  jobs: readonly DatabaseMediaJob[] | undefined,
+): DatabaseMediaJob | undefined {
+  return jobs?.find((job) => job.type === 'TRANSCRIPTION');
 }
 
 const extensionByContentType = {
@@ -106,6 +128,10 @@ export class MediaService {
     private readonly probeQueue: Queue<MediaProbeJobData>,
     @Inject(MEDIA_PROBE_CONFIGURATION)
     private readonly probeConfiguration: MediaProbeConfiguration,
+    @InjectQueue(transcriptionQueueName)
+    private readonly transcriptionQueue: Queue<TranscriptionJobData>,
+    @Inject(TRANSCRIPTION_CONFIGURATION)
+    private readonly transcriptionConfiguration: TranscriptionConfiguration,
   ) {}
 
   public async initiateSourceVideoUpload(
@@ -187,7 +213,10 @@ export class MediaService {
       projectId,
     );
     const media = await this.database.mediaAsset.findMany({
-      include: { jobs: true },
+      include: {
+        jobs: true,
+        transcript: { include: { _count: { select: { segments: true } } } },
+      },
       orderBy: { createdAt: 'desc' },
       where: {
         organizationId: project.organizationId,
@@ -291,6 +320,90 @@ export class MediaService {
     }
     const probe = await this.queueMediaProbe(media, { restart: true });
     return this.toSummary(media, [probe]);
+  }
+
+  public async requestTranscription(
+    actor: AuthenticatedUser,
+    organizationSlug: string,
+    projectId: string,
+    mediaId: string,
+  ): Promise<MediaAssetSummary> {
+    const media = await this.accessibleMedia(
+      actor.id,
+      organizationSlug,
+      projectId,
+      mediaId,
+    );
+    if (media.status !== 'UPLOADED') {
+      throw new ConflictException(
+        'Only a verified source video can be transcribed.',
+      );
+    }
+    const probe = probeJobOf(media.jobs);
+    if (probe?.status !== 'SUCCEEDED' || media.probedAt === null) {
+      throw new ConflictException(
+        'Analyze this video before starting transcription.',
+      );
+    }
+    if (media.hasAudio !== true) {
+      throw new ConflictException('This video has no audio to transcribe.');
+    }
+    const existing = transcriptionJobOf(media.jobs);
+    if (existing !== undefined && existing.status !== 'FAILED') {
+      return this.toSummary(media);
+    }
+    await this.queueTranscription(media, { restart: existing !== undefined });
+    const refreshed = await this.accessibleMedia(
+      actor.id,
+      organizationSlug,
+      projectId,
+      mediaId,
+    );
+    return this.toSummary(refreshed);
+  }
+
+  public async getTranscript(
+    actor: AuthenticatedUser,
+    organizationSlug: string,
+    projectId: string,
+    mediaId: string,
+  ): Promise<TranscriptDetail> {
+    const media = await this.accessibleMedia(
+      actor.id,
+      organizationSlug,
+      projectId,
+      mediaId,
+    );
+    const transcript = await this.database.transcript.findUnique({
+      include: { segments: { orderBy: { index: 'asc' } } },
+      where: { mediaAssetId: media.id },
+    });
+    if (transcript === null) {
+      throw new NotFoundException('Transcript not found.');
+    }
+    return {
+      createdAt: transcript.createdAt.toISOString(),
+      durationSeconds: transcript.durationSeconds,
+      id: transcript.id,
+      language: transcript.language,
+      mediaAssetId: transcript.mediaAssetId,
+      model: transcript.model,
+      organizationId: transcript.organizationId,
+      originalName: media.originalName,
+      projectId: transcript.projectId,
+      provider: transcript.provider,
+      segmentCount: transcript.segments.length,
+      segments: transcript.segments.map((segment) => ({
+        endSeconds: segment.endSeconds,
+        id: segment.id,
+        index: segment.index,
+        speaker: segment.speaker,
+        startSeconds: segment.startSeconds,
+        text: segment.text,
+      })),
+      text: transcript.text,
+      updatedAt: transcript.updatedAt.toISOString(),
+    };
   }
 
   public async failSourceVideoUpload(
@@ -398,6 +511,70 @@ export class MediaService {
     }
   }
 
+  private async queueTranscription(
+    media: DatabaseMediaAsset,
+    options: { readonly restart: boolean },
+  ): Promise<DatabaseMediaJob> {
+    const queuedAt = new Date();
+    const job = await this.database.mediaJob.upsert({
+      create: {
+        mediaAssetId: media.id,
+        organizationId: media.organizationId,
+        projectId: media.projectId,
+        queuedAt,
+        status: 'QUEUED',
+        type: 'TRANSCRIPTION',
+      },
+      update: options.restart
+        ? {
+            attempts: 0,
+            failureReason: null,
+            finishedAt: null,
+            queuedAt,
+            startedAt: null,
+            status: 'QUEUED',
+          }
+        : {},
+      where: {
+        mediaAssetId_type: { mediaAssetId: media.id, type: 'TRANSCRIPTION' },
+      },
+    });
+    try {
+      await this.transcriptionQueue.add(
+        'transcribe',
+        {
+          mediaAssetId: media.id,
+          mediaJobId: job.id,
+          organizationId: media.organizationId,
+          projectId: media.projectId,
+        },
+        {
+          attempts: this.transcriptionConfiguration.attempts,
+          backoff: { delay: 10_000, type: 'exponential' },
+          jobId: job.id,
+          removeOnComplete: true,
+          removeOnFail: true,
+        },
+      );
+      return job;
+    } catch (error) {
+      this.logger.error(
+        `Could not queue transcription for asset ${media.id}: ${
+          error instanceof Error ? error.message : 'unknown error'
+        }`,
+      );
+      return this.database.mediaJob.update({
+        data: {
+          failureReason:
+            'The processing queue was unreachable. Retry transcription.',
+          finishedAt: new Date(),
+          status: 'FAILED',
+        },
+        where: { id: job.id },
+      });
+    }
+  }
+
   private async accessibleProject(
     userId: string,
     organizationSlug: string,
@@ -438,7 +615,10 @@ export class MediaService {
       projectId,
     );
     const media = await this.database.mediaAsset.findFirst({
-      include: { jobs: true },
+      include: {
+        jobs: true,
+        transcript: { include: { _count: { select: { segments: true } } } },
+      },
       where: {
         id: mediaId,
         organizationId: project.organizationId,
@@ -470,6 +650,7 @@ export class MediaService {
       throw new Error('Media size exceeds the supported numeric range.');
     }
     const probe = probeJobOf(jobs);
+    const transcription = transcriptionJobOf(jobs);
     return {
       contentType: media.contentType,
       createdAt: media.createdAt.toISOString(),
@@ -482,11 +663,31 @@ export class MediaService {
       projectId: media.projectId,
       sizeBytes,
       status: asMediaStatus(media.status),
+      transcript:
+        media.transcript === null || media.transcript === undefined
+          ? null
+          : toTranscriptSummary(media.transcript),
+      transcription:
+        transcription === undefined ? null : toJobSummary(transcription),
       updatedAt: media.updatedAt.toISOString(),
       uploadedAt: media.uploadedAt?.toISOString() ?? null,
       uploadedById: media.uploadedById,
     };
   }
+}
+
+function toTranscriptSummary(
+  transcript: TranscriptWithCount,
+): TranscriptSummary {
+  return {
+    createdAt: transcript.createdAt.toISOString(),
+    id: transcript.id,
+    language: transcript.language,
+    model: transcript.model,
+    provider: transcript.provider,
+    segmentCount: transcript._count.segments,
+    updatedAt: transcript.updatedAt.toISOString(),
+  };
 }
 
 function toJobSummary(job: DatabaseMediaJob): MediaJobSummary {

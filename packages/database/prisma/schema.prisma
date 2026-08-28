@@ -37,7 +37,8 @@ enum MediaStatus {
 }
 
 enum MediaJobType {
-  MEDIA_PROBE @map("media_probe")
+  MEDIA_PROBE   @map("media_probe")
+  TRANSCRIPTION @map("transcription")
 
   @@map("media_job_type")
 }
@@ -78,6 +79,7 @@ model Organization {
   projects    Project[]
   mediaAssets MediaAsset[]
   mediaJobs   MediaJob[]
+  transcripts Transcript[]
 
   @@map("organizations")
 }
@@ -112,6 +114,7 @@ model Project {
   createdBy    User?        @relation("ProjectCreator", fields: [createdById], references: [id], onDelete: SetNull)
   mediaAssets  MediaAsset[]
   mediaJobs    MediaJob[]
+  transcripts  Transcript[]
 
   @@index([organizationId, updatedAt])
   @@index([createdById])
@@ -153,6 +156,7 @@ model MediaAsset {
   project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
   uploadedBy   User?        @relation("MediaUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
   jobs         MediaJob[]
+  transcript   Transcript?
 
   @@unique([storageProvider, storageBucket, storageKey])
   @@index([organizationId, createdAt])
@@ -186,4 +190,44 @@ model MediaJob {
   @@index([organizationId, createdAt])
   @@index([status, queuedAt])
   @@map("media_jobs")
+}
+
+model Transcript {
+  id              String   @id @default(uuid()) @db.Uuid
+  organizationId  String   @map("organization_id") @db.Uuid
+  projectId       String   @map("project_id") @db.Uuid
+  mediaAssetId    String   @unique @map("media_asset_id") @db.Uuid
+  provider        String   @db.VarChar(32)
+  model           String   @db.VarChar(100)
+  language        String?  @db.VarChar(16)
+  text            String   @db.Text
+  durationSeconds Float?   @map("duration_seconds")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  project      Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  mediaAsset   MediaAsset          @relation(fields: [mediaAssetId], references: [id], onDelete: Cascade)
+  segments     TranscriptSegment[]
+
+  @@index([organizationId, createdAt])
+  @@index([projectId, updatedAt])
+  @@map("transcripts")
+}
+
+model TranscriptSegment {
+  id           String   @id @default(uuid()) @db.Uuid
+  transcriptId String   @map("transcript_id") @db.Uuid
+  index        Int
+  startSeconds Float    @map("start_seconds")
+  endSeconds   Float    @map("end_seconds")
+  speaker      String?  @db.VarChar(64)
+  text         String   @db.Text
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  transcript Transcript @relation(fields: [transcriptId], references: [id], onDelete: Cascade)
+
+  @@unique([transcriptId, index])
+  @@index([transcriptId, startSeconds])
+  @@map("transcript_segments")
 }

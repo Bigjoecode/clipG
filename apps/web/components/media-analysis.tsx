@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 import { FormSubmitButton } from './form-submit-button';
 
 import type { MediaAssetSummary } from '@clipgenius/types';
@@ -6,6 +8,7 @@ interface MediaAnalysisProps {
   readonly media: MediaAssetSummary;
   readonly organizationSlug: string;
   readonly retryAction: (formData: FormData) => Promise<never>;
+  readonly transcriptionAction: (formData: FormData) => Promise<never>;
 }
 
 const analysisLabels = {
@@ -38,8 +41,9 @@ export function MediaAnalysis({
   media,
   organizationSlug,
   retryAction,
+  transcriptionAction,
 }: MediaAnalysisProps) {
-  const { metadata, probe } = media;
+  const { metadata, probe, transcript, transcription } = media;
 
   if (probe === null) {
     return media.status === 'UPLOADED' ? (
@@ -119,6 +123,73 @@ export function MediaAnalysis({
           />
         </form>
       ) : null}
+      {probe.status === 'SUCCEEDED' && metadata?.hasAudio === true ? (
+        <div className="space-y-2 border-t border-zinc-800 pt-3">
+          {transcription === null ? (
+            <TranscriptionForm
+              action={transcriptionAction}
+              label="Start transcription"
+              media={media}
+              organizationSlug={organizationSlug}
+            />
+          ) : (
+            <p className={`text-sm ${analysisStyles[transcription.status]}`}>
+              {transcription.status === 'QUEUED'
+                ? 'Waiting to transcribe'
+                : transcription.status === 'RUNNING'
+                  ? 'Transcribing audio'
+                  : transcription.status === 'SUCCEEDED'
+                    ? 'Transcribed'
+                    : `Transcription failed${
+                        transcription.failureReason === null
+                          ? ''
+                          : `: ${transcription.failureReason}`
+                      }`}
+            </p>
+          )}
+          {transcription?.status === 'FAILED' ? (
+            <TranscriptionForm
+              action={transcriptionAction}
+              label="Retry transcription"
+              media={media}
+              organizationSlug={organizationSlug}
+            />
+          ) : null}
+          {transcription?.status === 'SUCCEEDED' && transcript !== null ? (
+            <Link
+              className="inline-flex rounded-lg border border-emerald-900 px-3 py-1.5 text-xs text-emerald-300"
+              href={`/organizations/${encodeURIComponent(organizationSlug)}/projects/${encodeURIComponent(media.projectId)}/media/${encodeURIComponent(media.id)}/transcript`}
+            >
+              View transcript ({transcript.segmentCount} segments)
+            </Link>
+          ) : null}
+        </div>
+      ) : null}
     </div>
+  );
+}
+
+function TranscriptionForm({
+  action,
+  label,
+  media,
+  organizationSlug,
+}: {
+  readonly action: (formData: FormData) => Promise<never>;
+  readonly label: string;
+  readonly media: MediaAssetSummary;
+  readonly organizationSlug: string;
+}) {
+  return (
+    <form action={action}>
+      <input name="mediaId" type="hidden" value={media.id} />
+      <input name="organizationSlug" type="hidden" value={organizationSlug} />
+      <input name="projectId" type="hidden" value={media.projectId} />
+      <FormSubmitButton
+        className="rounded-lg border border-zinc-700 px-3 py-1.5 text-xs"
+        label={label}
+        pendingLabel="Queueing transcription..."
+      />
+    </form>
   );
 }

@@ -90,7 +90,7 @@ Organizes approved outputs into a coherent content campaign. This is outside the
 
 ## Provider boundary
 
-`@clipgenius/ai` defines capability contracts rather than vendor-specific application services. Concrete OpenAI, Anthropic, Google, transcription, vision, or image-generation adapters should be added only when a milestone needs them.
+`@clipgenius/ai` defines capability contracts rather than vendor-specific application services. Concrete provider adapters are added only when a milestone needs them. Task 007 introduces the first one: an OpenAI diarized-transcription adapter behind the `TranscriptionProvider` contract. It validates timestamped speaker segments before persistence and leaves retry ownership with the BullMQ worker. Content-intelligence, vision, image-generation, and editing providers remain deferred.
 
 Provider calls must eventually include:
 
@@ -112,6 +112,6 @@ The future Edit Plan will contain constrained typed operations such as keep, rem
 
 The AI layer must never generate shell commands, storage credentials, or unrestricted renderer arguments.
 
-## Task 001 boundary
+## Current milestone boundary
 
-Task 001 provides contracts and documentation only. It does not call a model, transcribe media, define the Edit Plan schema, generate content opportunities, or render video.
+Task 007 transcribes an analyzed source into full text and timestamped speaker segments. It does not define content intelligence, an Edit Plan, content opportunities, or rendering behavior.

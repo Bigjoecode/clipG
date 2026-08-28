@@ -141,3 +141,33 @@ export async function retrySourceVideoAnalysis(
   revalidatePath(path);
   redirect(`${path}?message=${encodeURIComponent(notice)}`);
 }
+
+export async function requestSourceVideoTranscription(
+  formData: FormData,
+): Promise<never> {
+  const result = completeSchema.safeParse({
+    mediaId: formData.get('mediaId'),
+    organizationSlug: formData.get('organizationSlug'),
+    projectId: formData.get('projectId'),
+  });
+  if (!result.success) {
+    redirect('/organizations?error=Choose+a+valid+video+to+transcribe.');
+  }
+
+  const path = `/organizations/${encodeURIComponent(result.data.organizationSlug)}/projects/${encodeURIComponent(result.data.projectId)}`;
+  try {
+    await authenticatedApiRequest<MediaAssetSummary>(
+      `${path}/media/${encodeURIComponent(result.data.mediaId)}/transcribe`,
+      { method: 'POST' },
+    );
+  } catch (error) {
+    const message = apiErrorMessage(error);
+    revalidatePath(path);
+    redirect(`${path}?error=${encodeURIComponent(message)}`);
+  }
+
+  revalidatePath(path);
+  redirect(
+    `${path}?message=${encodeURIComponent('Transcription queued. Refresh in a moment to see the result.')}`,
+  );
+}

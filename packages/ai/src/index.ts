@@ -11,11 +11,24 @@ export interface AIProvider {
 }
 
 export interface TranscriptionRequest {
+  /** Absolute path to a worker-local audio file. */
   readonly mediaUri: string;
   readonly language?: string;
 }
 
+export interface TranscriptionSegment {
+  readonly startSeconds: number;
+  readonly endSeconds: number;
+  readonly speaker: string | null;
+  readonly text: string;
+}
+
 export interface TranscriptionResult {
+  readonly durationSeconds: number | null;
+  readonly language: string | null;
+  readonly model: string;
+  readonly provider: string;
+  readonly segments: readonly TranscriptionSegment[];
   readonly text: string;
 }
 
@@ -30,3 +43,9 @@ export interface VisionProvider {
 export interface ImageGenerationProvider {
   generateImage(instruction: string): Promise<{ readonly uri: string }>;
 }
+
+export {
+  OpenAITranscriptionProvider,
+  TranscriptionProviderError,
+} from './openai-transcription.js';
+export type { OpenAITranscriptionProviderOptions } from './openai-transcription.js';

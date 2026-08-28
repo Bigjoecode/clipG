@@ -5,6 +5,8 @@ import {
   parseAuthEnvironment,
   parseDatabaseEnvironment,
   parseStorageEnvironment,
+  parseTranscriptionEnvironment,
+  parseTranscriptionJobEnvironment,
   parseWebEnvironment,
   parseWorkerEnvironment,
   redisConnectionOptionsFromUrl,
@@ -77,5 +79,21 @@ describe('environment validation', () => {
     expect(() =>
       parseStorageEnvironment({ SOURCE_VIDEO_MAX_BYTES: '0' }),
     ).toThrow();
+  });
+
+  it('validates worker-only transcription configuration', () => {
+    expect(
+      parseTranscriptionEnvironment({
+        OPENAI_API_KEY: 'sk-test-transcription-key',
+      }),
+    ).toMatchObject({
+      TRANSCRIPTION_MODEL: 'gpt-4o-transcribe-diarize',
+      TRANSCRIPTION_MAX_AUDIO_BYTES: 25 * 1024 * 1024,
+    });
+    expect(parseTranscriptionJobEnvironment({})).toEqual({
+      TRANSCRIPTION_ATTEMPTS: 3,
+      TRANSCRIPTION_CONCURRENCY: 1,
+    });
+    expect(() => parseTranscriptionEnvironment({})).toThrow();
   });
 });

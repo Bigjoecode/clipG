@@ -2,7 +2,7 @@
 
 ## Scope
 
-Task 002 introduced the persistence model required by Task 003: users, organizations, and organization memberships. Task 004 added organization-owned project metadata. Task 005 adds source-media metadata and upload lifecycle state. Task 006 adds background media job state and the technical metadata a probe derives from the stored object. Subscriptions, usage, transcripts, AI runs, renders, and publishing records remain deferred to their milestones.
+Task 002 introduced the persistence model required by Task 003: users, organizations, and organization memberships. Task 004 added organization-owned project metadata. Task 005 adds source-media metadata and upload lifecycle state. Task 006 adds background media job state and the technical metadata a probe derives from the stored object. Task 007 adds timestamped transcripts. Subscriptions, usage, content intelligence, AI runs, renders, and publishing records remain deferred to their milestones.
 
 ## Relationship model
 
@@ -69,9 +69,18 @@ Task 006 adds nullable technical columns — duration, width, height, video and 
 
 ### MediaJob
 
-`MediaJob` records background work against a media asset: type, explicit `QUEUED` / `RUNNING` / `SUCCEEDED` / `FAILED` status, attempt count, failure reason, and queued, started, and finished timestamps. Task 006 defines one type, `MEDIA_PROBE`.
+`MediaJob` records background work against a media asset: type, explicit `QUEUED` / `RUNNING` / `SUCCEEDED` / `FAILED` status, attempt count, failure reason, and queued, started, and finished timestamps. Task 006 defines `MEDIA_PROBE`; Task 007 adds `TRANSCRIPTION`.
 
 The unique `(mediaAssetId, type)` index is the idempotency key: one job of each type per asset. It makes a repeated upload completion reuse the existing job instead of queueing duplicate work, and it gives the queue a stable job identifier. The row is written before the message is published, so PostgreSQL — not Redis — is the durable record of what was requested and what happened. See [media processing architecture](media-processing.md).
+
+### Transcript and TranscriptSegment
+
+`Transcript` is the one-to-one transcription result for a source media asset.
+It stores tenant and project ownership, provider/model provenance, optional
+language and duration, canonical full text, and timestamps. `TranscriptSegment`
+stores ordered start/end times, optional speaker labels, and text. The unique
+`(transcriptId, index)` constraint preserves a deterministic sequence, while
+the unique media relation makes repeated worker delivery an idempotent upsert.
 
 ## Invariants
 
@@ -123,6 +132,16 @@ Application-enforced invariants for Task 006:
 - re-read the authoritative job and asset in the worker and reject a payload that disagrees with them;
 - write technical metadata and the job's success in a single transaction; and
 - treat a spent retry budget, not an individual failed attempt, as the terminal failed state.
+
+Application-enforced invariants for Task 007:
+
+- require a verified, successfully probed source with an audio stream before queueing;
+- authorize every request and transcript read through current project membership;
+- re-check the authoritative media and job rows inside the worker;
+- extract a bounded speech-only file without loading the source video into memory;
+- schema-validate provider output before persistence;
+- replace the transcript and ordered segments atomically on an idempotent retry; and
+- distinguish retryable provider failures from terminal input or credential failures.
 
 These rules require transaction context and actor authorization, so encoding partial versions as schema defaults would provide false safety.
 

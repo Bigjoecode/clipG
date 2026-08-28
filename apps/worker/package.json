@@ -12,6 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@clipgenius/ai": "workspace:*",
     "@clipgenius/config": "workspace:*",
     "@clipgenius/database": "workspace:*",
     "@clipgenius/storage": "workspace:*",

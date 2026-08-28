@@ -24,6 +24,7 @@ import type {
   AuthenticatedUser,
   MediaAssetSummary,
   SourceVideoUploadSession,
+  TranscriptDetail,
 } from '@clipgenius/types';
 
 @Controller('organizations/:organizationSlug/projects/:projectId/media')
@@ -90,6 +91,31 @@ export class MediaController {
       projectId,
       mediaId,
     );
+  }
+
+  @Post(':mediaId/transcribe')
+  public requestTranscription(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('organizationSlug') organizationSlug: string,
+    @Param('projectId') projectId: string,
+    @Param('mediaId') mediaId: string,
+  ): Promise<MediaAssetSummary> {
+    return this.media.requestTranscription(
+      user,
+      organizationSlug,
+      projectId,
+      mediaId,
+    );
+  }
+
+  @Get(':mediaId/transcript')
+  public getTranscript(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('organizationSlug') organizationSlug: string,
+    @Param('projectId') projectId: string,
+    @Param('mediaId') mediaId: string,
+  ): Promise<TranscriptDetail> {
+    return this.media.getTranscript(user, organizationSlug, projectId, mediaId);
   }
 
   @Post(':mediaId/fail')

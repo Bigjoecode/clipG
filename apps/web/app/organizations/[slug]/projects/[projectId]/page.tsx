@@ -5,7 +5,10 @@ import { FormSubmitButton } from '../../../../../components/form-submit-button';
 import { MediaAnalysis } from '../../../../../components/media-analysis';
 import { authenticatedApiRequest } from '../../../../../lib/api';
 import { deleteProject, setProjectStatus, updateProject } from '../actions';
-import { retrySourceVideoAnalysis } from './media-actions';
+import {
+  requestSourceVideoTranscription,
+  retrySourceVideoAnalysis,
+} from './media-actions';
 import { SourceVideoUploader } from './source-video-uploader';
 
 import type {
@@ -107,6 +110,7 @@ export default async function ProjectPage({
                 media={media}
                 organizationSlug={organization.slug}
                 retryAction={retrySourceVideoAnalysis}
+                transcriptionAction={requestSourceVideoTranscription}
               />
             </div>
           ))}

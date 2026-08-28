@@ -7,6 +7,8 @@ import { Module } from '@nestjs/common';
 
 import { DatabaseModule } from './database/database.module.js';
 import { MediaProbeModule } from './media/media-probe.module.js';
+import { StorageReaderModule } from './storage/storage-reader.module.js';
+import { TranscriptionModule } from './transcription/transcription.module.js';
 
 const environment = parseWorkerEnvironment(process.env);
 
@@ -16,7 +18,9 @@ const environment = parseWorkerEnvironment(process.env);
       connection: redisConnectionOptionsFromUrl(environment.REDIS_URL),
     }),
     DatabaseModule,
+    StorageReaderModule,
     MediaProbeModule,
+    TranscriptionModule,
   ],
 })
 export class AppModule {}

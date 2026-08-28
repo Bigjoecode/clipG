@@ -10,6 +10,7 @@ import type {
 } from '@clipgenius/types';
 
 const retryAction = vi.fn<(formData: FormData) => Promise<never>>();
+const transcriptionAction = vi.fn<(formData: FormData) => Promise<never>>();
 
 function media(overrides: Partial<MediaAssetSummary> = {}): MediaAssetSummary {
   return {
@@ -24,6 +25,8 @@ function media(overrides: Partial<MediaAssetSummary> = {}): MediaAssetSummary {
     projectId: '5ea74442-0c18-4e90-a009-300fa2f39cbd',
     sizeBytes: 1_024,
     status: 'UPLOADED',
+    transcript: null,
+    transcription: null,
     updatedAt: '2026-08-27T12:00:00.000Z',
     uploadedAt: '2026-08-27T12:01:00.000Z',
     uploadedById: 'ff2b9fef-ec23-48f2-a7bd-8e9c75edbb44',
@@ -62,6 +65,7 @@ function renderAnalysis(asset: MediaAssetSummary) {
       media={asset}
       organizationSlug="creator-studio"
       retryAction={retryAction}
+      transcriptionAction={transcriptionAction}
     />,
   );
 }
@@ -93,6 +97,44 @@ describe('MediaAnalysis', () => {
     expect(screen.getByText('1920×1080')).toBeInTheDocument();
     expect(screen.getByText('29.97 fps')).toBeInTheDocument();
     expect(screen.getByText('h264')).toBeInTheDocument();
+  });
+
+  it('offers transcription after successful analysis with audio', () => {
+    renderAnalysis(media({ metadata, probe: probe({ status: 'SUCCEEDED' }) }));
+
+    expect(
+      screen.getByRole('button', { name: 'Start transcription' }),
+    ).toBeInTheDocument();
+  });
+
+  it('links to the completed timestamped transcript', () => {
+    renderAnalysis(
+      media({
+        metadata,
+        probe: probe({ status: 'SUCCEEDED' }),
+        transcript: {
+          createdAt: '2026-08-28T12:00:00.000Z',
+          id: '82c63e3b-97f4-4ab0-9c16-1b93a7798080',
+          language: null,
+          model: 'gpt-4o-transcribe-diarize',
+          provider: 'openai',
+          segmentCount: 12,
+          updatedAt: '2026-08-28T12:00:00.000Z',
+        },
+        transcription: probe({
+          id: '92c63e3b-97f4-4ab0-9c16-1b93a7798080',
+          status: 'SUCCEEDED',
+          type: 'TRANSCRIPTION',
+        }),
+      }),
+    );
+
+    expect(
+      screen.getByRole('link', { name: 'View transcript (12 segments)' }),
+    ).toHaveAttribute(
+      'href',
+      `/organizations/creator-studio/projects/${media().projectId}/media/${media().id}/transcript`,
+    );
   });
 
   it('reports a silent video as having no audio', () => {

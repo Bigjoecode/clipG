@@ -49,6 +49,11 @@ export const mediaProbeEnvironmentSchema = z.object({
   MEDIA_PROBE_CONCURRENCY: z.coerce.number().int().min(1).max(16).default(2),
 });
 
+export const transcriptionJobEnvironmentSchema = z.object({
+  TRANSCRIPTION_ATTEMPTS: z.coerce.number().int().min(1).max(10).default(3),
+  TRANSCRIPTION_CONCURRENCY: z.coerce.number().int().min(1).max(8).default(1),
+});
+
 /**
  * Server-only configuration for the background worker. The Supabase secret key
  * bypasses Storage row-level security, so it must never reach the browser: the
@@ -84,6 +89,34 @@ export const mediaProcessingEnvironmentSchema =
       }),
   });
 
+export const transcriptionEnvironmentSchema =
+  transcriptionJobEnvironmentSchema.extend({
+    AUDIO_EXTRACTION_TIMEOUT_MS: z.coerce
+      .number()
+      .int()
+      .min(1_000)
+      .max(1_800_000)
+      .default(300_000),
+    OPENAI_API_KEY: z.string().trim().min(20),
+    TRANSCRIPTION_MAX_AUDIO_BYTES: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(100 * 1024 * 1024)
+      .default(25 * 1024 * 1024),
+    TRANSCRIPTION_MODEL: z
+      .string()
+      .trim()
+      .min(1)
+      .default('gpt-4o-transcribe-diarize'),
+    TRANSCRIPTION_TIMEOUT_MS: z.coerce
+      .number()
+      .int()
+      .min(1_000)
+      .max(1_800_000)
+      .default(600_000),
+  });
+
 export const webEnvironmentSchema = z.object({
   API_URL: url.default('http://localhost:4000'),
   NEXT_PUBLIC_APP_URL: url.default('http://localhost:3000'),
@@ -104,6 +137,12 @@ export type StorageEnvironment = z.infer<typeof storageEnvironmentSchema>;
 export type MediaProbeEnvironment = z.infer<typeof mediaProbeEnvironmentSchema>;
 export type MediaProcessingEnvironment = z.infer<
   typeof mediaProcessingEnvironmentSchema
+>;
+export type TranscriptionJobEnvironment = z.infer<
+  typeof transcriptionJobEnvironmentSchema
+>;
+export type TranscriptionEnvironment = z.infer<
+  typeof transcriptionEnvironmentSchema
 >;
 
 export function parseApiEnvironment(
@@ -152,6 +191,18 @@ export function parseMediaProcessingEnvironment(
   source: Record<string, string | undefined>,
 ): MediaProcessingEnvironment {
   return mediaProcessingEnvironmentSchema.parse(source);
+}
+
+export function parseTranscriptionJobEnvironment(
+  source: Record<string, string | undefined>,
+): TranscriptionJobEnvironment {
+  return transcriptionJobEnvironmentSchema.parse(source);
+}
+
+export function parseTranscriptionEnvironment(
+  source: Record<string, string | undefined>,
+): TranscriptionEnvironment {
+  return transcriptionEnvironmentSchema.parse(source);
 }
 
 export interface RedisConnectionOptions {

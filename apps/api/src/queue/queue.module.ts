@@ -2,7 +2,7 @@ import {
   parseWorkerEnvironment,
   redisConnectionOptionsFromUrl,
 } from '@clipgenius/config';
-import { mediaProbeQueueName } from '@clipgenius/types';
+import { mediaProbeQueueName, transcriptionQueueName } from '@clipgenius/types';
 import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 
@@ -27,7 +27,10 @@ const connection = redisConnectionOptionsFromUrl(environment.REDIS_URL);
         retryStrategy: () => null,
       },
     }),
-    BullModule.registerQueue({ name: mediaProbeQueueName }),
+    BullModule.registerQueue(
+      { name: mediaProbeQueueName },
+      { name: transcriptionQueueName },
+    ),
   ],
 })
 export class QueueModule {}

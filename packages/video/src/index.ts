@@ -18,6 +18,20 @@ export interface VideoProbe {
   probe(source: VideoSource): Promise<VideoMetadata>;
 }
 
+export interface AudioExtractionRequest {
+  readonly sourcePath: string;
+  readonly outputPath: string;
+}
+
+export interface ExtractedAudio {
+  readonly path: string;
+  readonly sizeBytes: number;
+}
+
+export interface AudioExtractor {
+  extract(request: AudioExtractionRequest): Promise<ExtractedAudio>;
+}
+
 export interface VideoProcessor<TPlan = unknown> {
   process(source: VideoSource, plan: TPlan): Promise<VideoSource>;
 }
@@ -40,3 +54,10 @@ export {
   parseFfprobeOutput,
 } from './ffprobe.js';
 export type { FfprobeVideoProbeOptions } from './ffprobe.js';
+export {
+  AudioExtractionError,
+  FfmpegAudioExtractor,
+  audioExtractionArguments,
+  ffmpegBinaryPath,
+} from './ffmpeg-audio.js';
+export type { FfmpegAudioExtractorOptions } from './ffmpeg-audio.js';

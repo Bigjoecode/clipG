@@ -91,6 +91,12 @@ Task 005 uses private Supabase Storage with signed TUS uploads as the first conc
 
 Task 006 adds the first real background pipeline. Verifying an upload records an idempotent media job and publishes it to BullMQ; the separate worker process streams the private object to a temporary file, reads container and stream metadata with a bundled ffprobe binary, and records explicit job state in PostgreSQL. The API is a producer only, so no media work runs inside an HTTP request. Server-side reads sit behind `ServerObjectReader` and probing behind `VideoProbe`; see [media processing architecture](media-processing.md).
 
+Task 007 adds a second durable job after a successful audio probe. The worker
+streams the private source to temporary storage, extracts a bounded mono speech
+track with FFmpeg, and calls a schema-validating transcription provider. The
+full text and timestamped speaker segments are committed atomically with job
+success; see [transcription architecture](transcription.md).
+
 ## Future AI pipeline
 
 ```text
