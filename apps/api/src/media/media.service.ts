@@ -2,19 +2,26 @@ import { randomUUID } from 'node:crypto';
 
 import {
   type MediaAsset as DatabaseMediaAsset,
+  type MediaJob as DatabaseMediaJob,
+  type MediaJobStatus as DatabaseMediaJobStatus,
+  type MediaJobType as DatabaseMediaJobType,
   type MediaKind as DatabaseMediaKind,
   type MediaStatus as DatabaseMediaStatus,
   type PrismaClient,
 } from '@clipgenius/database';
 import type { DirectUploadStorage } from '@clipgenius/storage';
+import { mediaProbeQueueName } from '@clipgenius/types';
+import { InjectQueue } from '@nestjs/bullmq';
 import {
   BadRequestException,
   ConflictException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
+import type { Queue } from 'bullmq';
 
 import { DATABASE_CLIENT } from '../database/database.module.js';
 import { normalizeOrganizationSlug } from '../organizations/organizations.service.js';
@@ -24,8 +31,13 @@ import type { InitiateSourceVideoUploadInput } from './media.schemas.js';
 import type {
   AuthenticatedUser,
   MediaAssetSummary,
+  MediaJobStatus,
+  MediaJobSummary,
+  MediaJobType,
   MediaKind,
+  MediaProbeJobData,
   MediaStatus,
+  MediaTechnicalMetadata,
   SourceVideoUploadSession,
 } from '@clipgenius/types';
 
@@ -34,7 +46,22 @@ export interface MediaUploadConfiguration {
   readonly maxSourceVideoBytes: number;
 }
 
+export interface MediaProbeConfiguration {
+  readonly attempts: number;
+}
+
 export const MEDIA_UPLOAD_CONFIGURATION = Symbol('MEDIA_UPLOAD_CONFIGURATION');
+export const MEDIA_PROBE_CONFIGURATION = Symbol('MEDIA_PROBE_CONFIGURATION');
+
+type MediaAssetWithJobs = DatabaseMediaAsset & {
+  readonly jobs?: readonly DatabaseMediaJob[];
+};
+
+function probeJobOf(
+  jobs: readonly DatabaseMediaJob[] | undefined,
+): DatabaseMediaJob | undefined {
+  return jobs?.find((job) => job.type === 'MEDIA_PROBE');
+}
 
 const extensionByContentType = {
   'video/mp4': 'mp4',
@@ -50,6 +77,14 @@ function asMediaStatus(status: DatabaseMediaStatus): MediaStatus {
   return status;
 }
 
+function asMediaJobType(type: DatabaseMediaJobType): MediaJobType {
+  return type;
+}
+
+function asMediaJobStatus(status: DatabaseMediaJobStatus): MediaJobStatus {
+  return status;
+}
+
 function normalizedContentType(contentType: string | null): string | null {
   if (contentType === null) {
     return null;
@@ -59,12 +94,18 @@ function normalizedContentType(contentType: string | null): string | null {
 
 @Injectable()
 export class MediaService {
+  private readonly logger = new Logger(MediaService.name);
+
   public constructor(
     @Inject(DATABASE_CLIENT) private readonly database: PrismaClient,
     @Inject(DIRECT_UPLOAD_STORAGE)
     private readonly storage: DirectUploadStorage,
     @Inject(MEDIA_UPLOAD_CONFIGURATION)
     private readonly configuration: MediaUploadConfiguration,
+    @InjectQueue(mediaProbeQueueName)
+    private readonly probeQueue: Queue<MediaProbeJobData>,
+    @Inject(MEDIA_PROBE_CONFIGURATION)
+    private readonly probeConfiguration: MediaProbeConfiguration,
   ) {}
 
   public async initiateSourceVideoUpload(
@@ -146,6 +187,7 @@ export class MediaService {
       projectId,
     );
     const media = await this.database.mediaAsset.findMany({
+      include: { jobs: true },
       orderBy: { createdAt: 'desc' },
       where: {
         organizationId: project.organizationId,
@@ -217,7 +259,38 @@ export class MediaService {
       },
       where: { id: media.id },
     });
-    return this.toSummary(updated);
+    const probe = await this.queueMediaProbe(updated, { restart: false });
+    return this.toSummary(updated, [probe]);
+  }
+
+  /**
+   * Re-queues analysis for a source video whose probe failed. Queueing is
+   * otherwise driven by upload completion, so this exists purely to make the
+   * failure path recoverable without a second upload.
+   */
+  public async requestSourceVideoProbe(
+    actor: AuthenticatedUser,
+    organizationSlug: string,
+    projectId: string,
+    mediaId: string,
+  ): Promise<MediaAssetSummary> {
+    const media = await this.accessibleMedia(
+      actor.id,
+      organizationSlug,
+      projectId,
+      mediaId,
+    );
+    if (media.status !== 'UPLOADED') {
+      throw new ConflictException(
+        'Only a verified upload can be analyzed again.',
+      );
+    }
+    const existing = probeJobOf(media.jobs);
+    if (existing !== undefined && existing.status !== 'FAILED') {
+      return this.toSummary(media, [existing]);
+    }
+    const probe = await this.queueMediaProbe(media, { restart: true });
+    return this.toSummary(media, [probe]);
   }
 
   public async failSourceVideoUpload(
@@ -243,6 +316,86 @@ export class MediaService {
       where: { id: media.id },
     });
     return this.toSummary(updated);
+  }
+
+  /**
+   * Records the intent to analyze a media asset and hands it to the worker.
+   *
+   * PostgreSQL is the source of truth: the row is written first, and the unique
+   * `(mediaAssetId, type)` index makes a repeated upload completion reuse the
+   * existing job instead of queueing a second one. A queue outage therefore
+   * cannot lose the record, and it never fails the upload the caller just
+   * verified — the job is marked failed so the owner can retry analysis.
+   */
+  private async queueMediaProbe(
+    media: DatabaseMediaAsset,
+    options: { readonly restart: boolean },
+  ): Promise<DatabaseMediaJob> {
+    const queuedAt = new Date();
+    const job = await this.database.mediaJob.upsert({
+      create: {
+        mediaAssetId: media.id,
+        organizationId: media.organizationId,
+        projectId: media.projectId,
+        queuedAt,
+        status: 'QUEUED',
+        type: 'MEDIA_PROBE',
+      },
+      update: options.restart
+        ? {
+            attempts: 0,
+            failureReason: null,
+            finishedAt: null,
+            queuedAt,
+            startedAt: null,
+            status: 'QUEUED',
+          }
+        : {},
+      where: {
+        mediaAssetId_type: { mediaAssetId: media.id, type: 'MEDIA_PROBE' },
+      },
+    });
+
+    if (!options.restart && job.status !== 'QUEUED') {
+      return job;
+    }
+
+    try {
+      await this.probeQueue.add(
+        'probe',
+        {
+          mediaAssetId: media.id,
+          mediaJobId: job.id,
+          organizationId: media.organizationId,
+          projectId: media.projectId,
+        },
+        {
+          attempts: this.probeConfiguration.attempts,
+          backoff: { delay: 5_000, type: 'exponential' },
+          // The database row carries the durable outcome, so Redis keeps nothing
+          // after the job settles and a retry can reuse the same job id.
+          jobId: job.id,
+          removeOnComplete: true,
+          removeOnFail: true,
+        },
+      );
+      return job;
+    } catch (error) {
+      this.logger.error(
+        `Could not queue media probe for asset ${media.id}: ${
+          error instanceof Error ? error.message : 'unknown error'
+        }`,
+      );
+      return this.database.mediaJob.update({
+        data: {
+          failureReason:
+            'The processing queue was unreachable. Retry the analysis.',
+          finishedAt: new Date(),
+          status: 'FAILED',
+        },
+        where: { id: job.id },
+      });
+    }
   }
 
   private async accessibleProject(
@@ -277,7 +430,7 @@ export class MediaService {
     organizationSlug: string,
     projectId: string,
     mediaId: string,
-  ): Promise<DatabaseMediaAsset> {
+  ): Promise<MediaAssetWithJobs> {
     this.assertUuid(mediaId, 'Media id');
     const project = await this.accessibleProject(
       userId,
@@ -285,6 +438,7 @@ export class MediaService {
       projectId,
     );
     const media = await this.database.mediaAsset.findFirst({
+      include: { jobs: true },
       where: {
         id: mediaId,
         organizationId: project.organizationId,
@@ -307,18 +461,24 @@ export class MediaService {
     }
   }
 
-  private toSummary(media: DatabaseMediaAsset): MediaAssetSummary {
+  private toSummary(
+    media: MediaAssetWithJobs,
+    jobs: readonly DatabaseMediaJob[] = media.jobs ?? [],
+  ): MediaAssetSummary {
     const sizeBytes = Number(media.sizeBytes);
     if (!Number.isSafeInteger(sizeBytes)) {
       throw new Error('Media size exceeds the supported numeric range.');
     }
+    const probe = probeJobOf(jobs);
     return {
       contentType: media.contentType,
       createdAt: media.createdAt.toISOString(),
       id: media.id,
       kind: asMediaKind(media.kind),
+      metadata: toTechnicalMetadata(media),
       organizationId: media.organizationId,
       originalName: media.originalName,
+      probe: probe === undefined ? null : toJobSummary(probe),
       projectId: media.projectId,
       sizeBytes,
       status: asMediaStatus(media.status),
@@ -327,4 +487,45 @@ export class MediaService {
       uploadedById: media.uploadedById,
     };
   }
+}
+
+function toJobSummary(job: DatabaseMediaJob): MediaJobSummary {
+  return {
+    attempts: job.attempts,
+    failureReason: job.failureReason,
+    finishedAt: job.finishedAt?.toISOString() ?? null,
+    id: job.id,
+    queuedAt: job.queuedAt.toISOString(),
+    startedAt: job.startedAt?.toISOString() ?? null,
+    status: asMediaJobStatus(job.status),
+    type: asMediaJobType(job.type),
+  };
+}
+
+/**
+ * Technical metadata is only meaningful once a probe has written the whole set,
+ * so a partially populated row reports no metadata rather than zeroes.
+ */
+function toTechnicalMetadata(
+  media: DatabaseMediaAsset,
+): MediaTechnicalMetadata | null {
+  const { durationSeconds, hasAudio, height, width } = media;
+  if (
+    media.probedAt === null ||
+    durationSeconds === null ||
+    width === null ||
+    height === null
+  ) {
+    return null;
+  }
+  return {
+    audioCodec: media.audioCodec,
+    bitRate: media.bitRate,
+    durationSeconds,
+    frameRate: media.frameRate,
+    hasAudio: hasAudio ?? false,
+    height,
+    videoCodec: media.videoCodec,
+    width,
+  };
 }

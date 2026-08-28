@@ -89,6 +89,8 @@ Media bytes should not pass through PostgreSQL or be buffered wholesale in the A
 
 Task 005 uses private Supabase Storage with signed TUS uploads as the first concrete provider. The browser uploads six-megabyte resumable chunks directly to Storage using a short-lived signature, while membership-aware Storage RLS protects object creation and inspection. Provider-specific code remains behind `DirectUploadStorage`; see [video upload architecture](video-upload.md).
 
+Task 006 adds the first real background pipeline. Verifying an upload records an idempotent media job and publishes it to BullMQ; the separate worker process streams the private object to a temporary file, reads container and stream metadata with a bundled ffprobe binary, and records explicit job state in PostgreSQL. The API is a producer only, so no media work runs inside an HTTP request. Server-side reads sit behind `ServerObjectReader` and probing behind `VideoProbe`; see [media processing architecture](media-processing.md).
+
 ## Future AI pipeline
 
 ```text

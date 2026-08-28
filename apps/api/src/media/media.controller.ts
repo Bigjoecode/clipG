@@ -77,6 +77,21 @@ export class MediaController {
     );
   }
 
+  @Post(':mediaId/probe')
+  public requestSourceVideoProbe(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('organizationSlug') organizationSlug: string,
+    @Param('projectId') projectId: string,
+    @Param('mediaId') mediaId: string,
+  ): Promise<MediaAssetSummary> {
+    return this.media.requestSourceVideoProbe(
+      user,
+      organizationSlug,
+      projectId,
+      mediaId,
+    );
+  }
+
   @Post(':mediaId/fail')
   public failSourceVideoUpload(
     @CurrentUser() user: AuthenticatedUser,

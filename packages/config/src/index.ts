@@ -39,6 +39,51 @@ export const storageEnvironmentSchema = z.object({
     .default(50 * 1024 * 1024),
 });
 
+/**
+ * Non-secret media job settings. Keeping them separate from the worker-only
+ * credentials means neither the API producer nor an imported processor class
+ * needs the Supabase secret key merely to describe how jobs are scheduled.
+ */
+export const mediaProbeEnvironmentSchema = z.object({
+  MEDIA_PROBE_ATTEMPTS: z.coerce.number().int().min(1).max(10).default(3),
+  MEDIA_PROBE_CONCURRENCY: z.coerce.number().int().min(1).max(16).default(2),
+});
+
+/**
+ * Server-only configuration for the background worker. The Supabase secret key
+ * bypasses Storage row-level security, so it must never reach the browser: the
+ * schema rejects a publishable key pasted here by mistake.
+ */
+export const mediaProcessingEnvironmentSchema =
+  mediaProbeEnvironmentSchema.extend({
+    MEDIA_PROBE_MAX_BYTES: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(50 * 1024 * 1024 * 1024)
+      .default(50 * 1024 * 1024),
+    MEDIA_PROBE_TIMEOUT_MS: z.coerce
+      .number()
+      .int()
+      .min(1_000)
+      .max(600_000)
+      .default(120_000),
+    UPLOAD_PENDING_MAX_AGE_HOURS: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(168)
+      .default(24),
+    SUPABASE_SECRET_KEY: z
+      .string()
+      .trim()
+      .min(20)
+      .refine((value) => !value.startsWith('sb_publishable_'), {
+        message:
+          'SUPABASE_SECRET_KEY must be a Supabase secret key, not a publishable key.',
+      }),
+  });
+
 export const webEnvironmentSchema = z.object({
   API_URL: url.default('http://localhost:4000'),
   NEXT_PUBLIC_APP_URL: url.default('http://localhost:3000'),
@@ -56,6 +101,10 @@ export type DatabaseEnvironment = z.infer<typeof databaseEnvironmentSchema>;
 export type WebEnvironment = z.infer<typeof webEnvironmentSchema>;
 export type WorkerEnvironment = z.infer<typeof workerEnvironmentSchema>;
 export type StorageEnvironment = z.infer<typeof storageEnvironmentSchema>;
+export type MediaProbeEnvironment = z.infer<typeof mediaProbeEnvironmentSchema>;
+export type MediaProcessingEnvironment = z.infer<
+  typeof mediaProcessingEnvironmentSchema
+>;
 
 export function parseApiEnvironment(
   source: Record<string, string | undefined>,
@@ -91,6 +140,18 @@ export function parseStorageEnvironment(
   source: Record<string, string | undefined>,
 ): StorageEnvironment {
   return storageEnvironmentSchema.parse(source);
+}
+
+export function parseMediaProbeEnvironment(
+  source: Record<string, string | undefined>,
+): MediaProbeEnvironment {
+  return mediaProbeEnvironmentSchema.parse(source);
+}
+
+export function parseMediaProcessingEnvironment(
+  source: Record<string, string | undefined>,
+): MediaProcessingEnvironment {
+  return mediaProcessingEnvironmentSchema.parse(source);
 }
 
 export interface RedisConnectionOptions {

@@ -36,6 +36,21 @@ enum MediaStatus {
   @@map("media_status")
 }
 
+enum MediaJobType {
+  MEDIA_PROBE @map("media_probe")
+
+  @@map("media_job_type")
+}
+
+enum MediaJobStatus {
+  QUEUED    @map("queued")
+  RUNNING   @map("running")
+  SUCCEEDED @map("succeeded")
+  FAILED    @map("failed")
+
+  @@map("media_job_status")
+}
+
 model User {
   id              String    @id @default(uuid()) @db.Uuid
   email           String    @unique @db.VarChar(320)
@@ -62,6 +77,7 @@ model Organization {
   memberships OrganizationMembership[]
   projects    Project[]
   mediaAssets MediaAsset[]
+  mediaJobs   MediaJob[]
 
   @@map("organizations")
 }
@@ -95,6 +111,7 @@ model Project {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   createdBy    User?        @relation("ProjectCreator", fields: [createdById], references: [id], onDelete: SetNull)
   mediaAssets  MediaAsset[]
+  mediaJobs    MediaJob[]
 
   @@index([organizationId, updatedAt])
   @@index([createdById])
@@ -119,13 +136,54 @@ model MediaAsset {
   createdAt       DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
 
+  // Technical facts derived from the stored object by ffprobe. They describe the
+  // immutable source rather than replacing it, and stay null until a media probe
+  // job succeeds.
+  durationSeconds Float?    @map("duration_seconds")
+  width           Int?
+  height          Int?
+  videoCodec      String?   @map("video_codec") @db.VarChar(64)
+  audioCodec      String?   @map("audio_codec") @db.VarChar(64)
+  frameRate       Float?    @map("frame_rate")
+  bitRate         Int?      @map("bit_rate")
+  hasAudio        Boolean?  @map("has_audio")
+  probedAt        DateTime? @map("probed_at") @db.Timestamptz(3)
+
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
   uploadedBy   User?        @relation("MediaUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+  jobs         MediaJob[]
 
   @@unique([storageProvider, storageBucket, storageKey])
   @@index([organizationId, createdAt])
   @@index([projectId, status])
   @@index([uploadedById])
   @@map("media_assets")
+}
+
+model MediaJob {
+  id             String         @id @default(uuid()) @db.Uuid
+  organizationId String         @map("organization_id") @db.Uuid
+  projectId      String         @map("project_id") @db.Uuid
+  mediaAssetId   String         @map("media_asset_id") @db.Uuid
+  type           MediaJobType
+  status         MediaJobStatus @default(QUEUED)
+  attempts       Int            @default(0)
+  failureReason  String?        @map("failure_reason") @db.VarChar(500)
+  queuedAt       DateTime       @default(now()) @map("queued_at") @db.Timestamptz(3)
+  startedAt      DateTime?      @map("started_at") @db.Timestamptz(3)
+  finishedAt     DateTime?      @map("finished_at") @db.Timestamptz(3)
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  mediaAsset   MediaAsset   @relation(fields: [mediaAssetId], references: [id], onDelete: Cascade)
+
+  // One job of each type per media asset. This is the idempotency key that makes
+  // a repeated completion call reuse the existing job instead of queueing again.
+  @@unique([mediaAssetId, type])
+  @@index([organizationId, createdAt])
+  @@index([status, queuedAt])
+  @@map("media_jobs")
 }

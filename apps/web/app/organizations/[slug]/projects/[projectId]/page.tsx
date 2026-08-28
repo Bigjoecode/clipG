@@ -2,8 +2,10 @@ import Link from 'next/link';
 
 import { ActionNotice } from '../../../../../components/action-notice';
 import { FormSubmitButton } from '../../../../../components/form-submit-button';
+import { MediaAnalysis } from '../../../../../components/media-analysis';
 import { authenticatedApiRequest } from '../../../../../lib/api';
 import { deleteProject, setProjectStatus, updateProject } from '../actions';
+import { retrySourceVideoAnalysis } from './media-actions';
 import { SourceVideoUploader } from './source-video-uploader';
 
 import type {
@@ -86,19 +88,26 @@ export default async function ProjectPage({
         <div className="mt-6 space-y-3">
           {mediaAssets.map((media) => (
             <div
-              className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-800 bg-zinc-900/40 p-4"
+              className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4"
               key={media.id}
             >
-              <div>
-                <p className="font-medium">{media.originalName}</p>
-                <p className="mt-1 text-sm text-zinc-500">
-                  {(media.sizeBytes / (1024 * 1024)).toFixed(1)} MB ·{' '}
-                  {media.contentType}
-                </p>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="font-medium">{media.originalName}</p>
+                  <p className="mt-1 text-sm text-zinc-500">
+                    {(media.sizeBytes / (1024 * 1024)).toFixed(1)} MB ·{' '}
+                    {media.contentType}
+                  </p>
+                </div>
+                <span className="rounded-full bg-zinc-800 px-3 py-1 text-xs">
+                  {media.status.replaceAll('_', ' ')}
+                </span>
               </div>
-              <span className="rounded-full bg-zinc-800 px-3 py-1 text-xs">
-                {media.status.replaceAll('_', ' ')}
-              </span>
+              <MediaAnalysis
+                media={media}
+                organizationSlug={organization.slug}
+                retryAction={retrySourceVideoAnalysis}
+              />
             </div>
           ))}
         </div>

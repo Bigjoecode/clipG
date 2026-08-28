@@ -75,6 +75,8 @@ export interface MediaAssetSummary {
   readonly uploadedAt: string | null;
   readonly createdAt: string;
   readonly updatedAt: string;
+  readonly metadata: MediaTechnicalMetadata | null;
+  readonly probe: MediaJobSummary | null;
 }
 
 export interface ResumableUploadTarget {
@@ -90,4 +92,55 @@ export interface ResumableUploadTarget {
 export interface SourceVideoUploadSession {
   readonly media: MediaAssetSummary;
   readonly upload: ResumableUploadTarget;
+}
+
+export const mediaJobTypes = ['MEDIA_PROBE'] as const;
+export const mediaJobStatuses = [
+  'QUEUED',
+  'RUNNING',
+  'SUCCEEDED',
+  'FAILED',
+] as const;
+
+export type MediaJobType = (typeof mediaJobTypes)[number];
+export type MediaJobStatus = (typeof mediaJobStatuses)[number];
+
+export interface MediaTechnicalMetadata {
+  readonly durationSeconds: number;
+  readonly width: number;
+  readonly height: number;
+  readonly videoCodec: string | null;
+  readonly audioCodec: string | null;
+  readonly frameRate: number | null;
+  readonly bitRate: number | null;
+  readonly hasAudio: boolean;
+}
+
+export interface MediaJobSummary {
+  readonly id: string;
+  readonly type: MediaJobType;
+  readonly status: MediaJobStatus;
+  readonly attempts: number;
+  readonly failureReason: string | null;
+  readonly queuedAt: string;
+  readonly startedAt: string | null;
+  readonly finishedAt: string | null;
+}
+
+/**
+ * Queue name shared by the API producer and the worker consumer. Changing it
+ * orphans jobs that are already waiting in Redis.
+ */
+export const mediaProbeQueueName = 'media-probe';
+
+/**
+ * Payload carried through BullMQ. It deliberately holds identifiers only: the
+ * worker re-reads authoritative state from PostgreSQL so a replayed or stale
+ * message can never resurrect deleted media or bypass tenancy.
+ */
+export interface MediaProbeJobData {
+  readonly mediaJobId: string;
+  readonly mediaAssetId: string;
+  readonly organizationId: string;
+  readonly projectId: string;
 }

@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
 import { z } from 'zod';
 
 import {
@@ -23,6 +24,18 @@ const initiateSchema = locationSchema.extend({
   sizeBytes: z.number().int().positive(),
 });
 const completeSchema = locationSchema.extend({ mediaId: z.uuid() });
+
+/**
+ * `authenticatedApiRequest` redirects to the login page by throwing Next's
+ * redirect signal. Swallowing it would replace the sign-in with a generic error
+ * message, so anything that is not a real API failure is re-thrown.
+ */
+function apiErrorMessage(error: unknown): string {
+  if (error instanceof ApiRequestError) {
+    return error.message;
+  }
+  throw error;
+}
 
 export type UploadActionResult<T> =
   | { readonly data: T; readonly error?: never }
@@ -49,12 +62,7 @@ export async function initiateSourceVideoUpload(
     );
     return { data };
   } catch (error) {
-    return {
-      error:
-        error instanceof ApiRequestError
-          ? error.message
-          : 'Could not prepare the video upload.',
-    };
+    return { error: apiErrorMessage(error) };
   }
 }
 
@@ -75,12 +83,7 @@ export async function completeSourceVideoUpload(
     );
     return { data };
   } catch (error) {
-    return {
-      error:
-        error instanceof ApiRequestError
-          ? error.message
-          : 'Could not verify the completed upload.',
-    };
+    return { error: apiErrorMessage(error) };
   }
 }
 
@@ -101,11 +104,40 @@ export async function failSourceVideoUpload(
     );
     return { data };
   } catch (error) {
-    return {
-      error:
-        error instanceof ApiRequestError
-          ? error.message
-          : 'Could not record the interrupted upload.',
-    };
+    return { error: apiErrorMessage(error) };
   }
+}
+
+/**
+ * Form action used by the project page's "Retry analysis" button. It reports the
+ * outcome through the page's notice banner rather than returning a value,
+ * matching the other project lifecycle actions.
+ */
+export async function retrySourceVideoAnalysis(
+  formData: FormData,
+): Promise<never> {
+  const result = completeSchema.safeParse({
+    mediaId: formData.get('mediaId'),
+    organizationSlug: formData.get('organizationSlug'),
+    projectId: formData.get('projectId'),
+  });
+  if (!result.success) {
+    redirect('/organizations?error=Choose+a+valid+video+to+analyze.');
+  }
+
+  const path = `/organizations/${encodeURIComponent(result.data.organizationSlug)}/projects/${encodeURIComponent(result.data.projectId)}`;
+  const notice = 'Analysis queued. Refresh in a moment to see the result.';
+  try {
+    await authenticatedApiRequest<MediaAssetSummary>(
+      `${path}/media/${encodeURIComponent(result.data.mediaId)}/probe`,
+      { method: 'POST' },
+    );
+  } catch (error) {
+    const message = apiErrorMessage(error);
+    revalidatePath(path);
+    redirect(`${path}?error=${encodeURIComponent(message)}`);
+  }
+
+  revalidatePath(path);
+  redirect(`${path}?message=${encodeURIComponent(notice)}`);
 }

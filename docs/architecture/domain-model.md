@@ -2,7 +2,7 @@
 
 ## Scope
 
-Task 002 introduced the persistence model required by Task 003: users, organizations, and organization memberships. Task 004 added organization-owned project metadata. Task 005 adds source-media metadata and upload lifecycle state. Subscriptions, usage, transcripts, AI runs, jobs, renders, and publishing records remain deferred to their milestones.
+Task 002 introduced the persistence model required by Task 003: users, organizations, and organization memberships. Task 004 added organization-owned project metadata. Task 005 adds source-media metadata and upload lifecycle state. Task 006 adds background media job state and the technical metadata a probe derives from the stored object. Subscriptions, usage, transcripts, AI runs, renders, and publishing records remain deferred to their milestones.
 
 ## Relationship model
 
@@ -63,7 +63,15 @@ Archiving is the normal reversible lifecycle action. Hard deletion is an explici
 
 `MediaAsset` records immutable source-video provenance and the expected object metadata without storing media bytes in PostgreSQL. Task 005 records organization, project, optional uploader, original name, validated MIME type and size, provider/bucket/key, upload status, failure reason, and timestamps.
 
-Upload status is limited to `UPLOAD_PENDING`, `UPLOADED`, and `FAILED`. The API creates a pending record before issuing a direct-storage upload target, then verifies the stored object's exact size and content type before marking it uploaded. Later processing state does not belong in this upload lifecycle enum.
+Upload status is limited to `UPLOAD_PENDING`, `UPLOADED`, and `FAILED`. The API creates a pending record before issuing a direct-storage upload target, then verifies the stored object's exact size and content type before marking it uploaded. Later processing state does not belong in this upload lifecycle enum, and Task 006 keeps it in `MediaJob` rather than widening it.
+
+Task 006 adds nullable technical columns — duration, width, height, video and audio codec, frame rate, bit rate, audio presence, and `probedAt`. They are derived facts describing the immutable source rather than a mutation of it, they are always wanted wherever the asset is, and the relationship is strictly one-to-one, so they live on the asset instead of behind a join. They stay null until a probe succeeds, and the API reports metadata only when `probedAt` and the required dimensions are all present.
+
+### MediaJob
+
+`MediaJob` records background work against a media asset: type, explicit `QUEUED` / `RUNNING` / `SUCCEEDED` / `FAILED` status, attempt count, failure reason, and queued, started, and finished timestamps. Task 006 defines one type, `MEDIA_PROBE`.
+
+The unique `(mediaAssetId, type)` index is the idempotency key: one job of each type per asset. It makes a repeated upload completion reuse the existing job instead of queueing duplicate work, and it gives the queue a stable job identifier. The row is written before the message is published, so PostgreSQL — not Redis — is the durable record of what was requested and what happened. See [media processing architecture](media-processing.md).
 
 ## Invariants
 
@@ -107,6 +115,14 @@ Application-enforced invariants for Task 005:
 - stream video bytes directly from the browser to object storage;
 - verify stored size and content type before declaring upload success; and
 - preserve source objects rather than overwriting a prior upload path.
+
+Application-enforced invariants for Task 006:
+
+- record a media job before publishing its queue message, and never fail a verified upload because the queue is unreachable;
+- keep one probe job per media asset so repeated completion cannot queue duplicate work;
+- re-read the authoritative job and asset in the worker and reject a payload that disagrees with them;
+- write technical metadata and the job's success in a single transaction; and
+- treat a spent retry budget, not an individual failed attempt, as the terminal failed state.
 
 These rules require transaction context and actor authorization, so encoding partial versions as schema defaults would provide false safety.
 

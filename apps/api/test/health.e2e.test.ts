@@ -1,3 +1,5 @@
+import { mediaProbeQueueName } from '@clipgenius/types';
+import { getQueueToken } from '@nestjs/bullmq';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -31,6 +33,10 @@ describe('GET /health', () => {
       })
       .overrideProvider(DIRECT_UPLOAD_STORAGE)
       .useValue({})
+      // The API boots as a queue producer, but an HTTP smoke test must not need
+      // a live Redis to answer a request.
+      .overrideProvider(getQueueToken(mediaProbeQueueName))
+      .useValue({ add: vi.fn() })
       .compile();
 
     application = moduleReference.createNestApplication();
@@ -75,6 +81,10 @@ describe('GET /organizations', () => {
       .useValue({ verifyAccessToken })
       .overrideProvider(DIRECT_UPLOAD_STORAGE)
       .useValue({})
+      // The API boots as a queue producer, but an HTTP smoke test must not need
+      // a live Redis to answer a request.
+      .overrideProvider(getQueueToken(mediaProbeQueueName))
+      .useValue({ add: vi.fn() })
       .compile();
 
     application = moduleReference.createNestApplication();

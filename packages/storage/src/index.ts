@@ -45,3 +45,20 @@ export interface DirectUploadStorage {
     key: string,
   ): Promise<DirectUploadObjectInfo | null>;
 }
+
+export interface SignedDownload {
+  readonly url: string;
+  readonly expiresAt: Date;
+}
+
+/**
+ * Server-side read boundary for private objects. Only trusted background
+ * services hold a credential able to satisfy this contract; the browser upload
+ * path uses `DirectUploadStorage` instead.
+ */
+export interface ServerObjectReader {
+  createSignedDownloadUrl(
+    key: string,
+    lifetimeSeconds: number,
+  ): Promise<SignedDownload>;
+}

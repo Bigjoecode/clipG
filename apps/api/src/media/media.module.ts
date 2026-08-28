@@ -1,18 +1,24 @@
-import { parseStorageEnvironment } from '@clipgenius/config';
+import {
+  parseMediaProbeEnvironment,
+  parseStorageEnvironment,
+} from '@clipgenius/config';
 import { Module } from '@nestjs/common';
 
 import { AuthenticationModule } from '../auth/authentication.module.js';
+import { QueueModule } from '../queue/queue.module.js';
 import { StorageModule } from '../storage/storage.module.js';
 import { MediaController } from './media.controller.js';
 import {
+  MEDIA_PROBE_CONFIGURATION,
   MEDIA_UPLOAD_CONFIGURATION,
   MediaService,
+  type MediaProbeConfiguration,
   type MediaUploadConfiguration,
 } from './media.service.js';
 
 @Module({
   controllers: [MediaController],
-  imports: [AuthenticationModule, StorageModule],
+  imports: [AuthenticationModule, StorageModule, QueueModule],
   providers: [
     {
       provide: MEDIA_UPLOAD_CONFIGURATION,
@@ -22,6 +28,15 @@ import {
           bucket: environment.SOURCE_VIDEO_BUCKET,
           maxSourceVideoBytes: environment.SOURCE_VIDEO_MAX_BYTES,
         };
+      },
+    },
+    {
+      provide: MEDIA_PROBE_CONFIGURATION,
+      useFactory: (): MediaProbeConfiguration => {
+        // The API only needs the retry budget. The Supabase secret key and probe
+        // limits belong to the worker and are deliberately not readable here.
+        const environment = parseMediaProbeEnvironment(process.env);
+        return { attempts: environment.MEDIA_PROBE_ATTEMPTS };
       },
     },
     MediaService,

@@ -3,6 +3,10 @@
   "compilerOptions": {
     "declaration": true,
     "outDir": "dist",
-    "sourceMap": true
-  }
+    "rootDir": "src",
+    "sourceMap": true,
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["test", "vitest.config.ts"]
 }

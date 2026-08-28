@@ -5,6 +5,9 @@ import {
 import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 
+import { DatabaseModule } from './database/database.module.js';
+import { MediaProbeModule } from './media/media-probe.module.js';
+
 const environment = parseWorkerEnvironment(process.env);
 
 @Module({
@@ -12,6 +15,8 @@ const environment = parseWorkerEnvironment(process.env);
     BullModule.forRoot({
       connection: redisConnectionOptionsFromUrl(environment.REDIS_URL),
     }),
+    DatabaseModule,
+    MediaProbeModule,
   ],
 })
 export class AppModule {}
