@@ -3,6 +3,8 @@ import { createReadStream } from 'node:fs';
 import OpenAI from 'openai';
 import { z } from 'zod';
 
+import { distinctSpeakerCount } from './speakers.js';
+
 import type {
   TranscriptionProvider,
   TranscriptionRequest,
@@ -112,17 +114,20 @@ export class OpenAITranscriptionProvider implements TranscriptionProvider {
         true,
       );
     }
+    const segments = parsed.data.segments.map((segment) => ({
+      endSeconds: segment.end,
+      speaker: segment.speaker,
+      startSeconds: segment.start,
+      text: segment.text.trim(),
+    }));
     return {
+      diarized: true,
       durationSeconds: parsed.data.duration,
       language: request.language ?? null,
       model: this.options.model,
       provider: 'openai',
-      segments: parsed.data.segments.map((segment) => ({
-        endSeconds: segment.end,
-        speaker: segment.speaker,
-        startSeconds: segment.start,
-        text: segment.text.trim(),
-      })),
+      segments,
+      speakerCount: distinctSpeakerCount(segments),
       text: parsed.data.text.trim(),
     };
   }
@@ -133,14 +138,23 @@ function providerError(error: unknown): TranscriptionProviderError {
     return error;
   }
   if (error instanceof OpenAI.APIError) {
+    // OpenAI returns 429 both for genuine rate limiting and for an exhausted
+    // quota. Retrying an exhausted quota can never succeed, so it is terminal:
+    // only the error code separates the two.
+    const outOfQuota =
+      error.code === 'insufficient_quota' ||
+      error.code === 'billing_hard_limit_reached';
     const retryable =
-      error.status === undefined ||
-      error.status === 408 ||
-      error.status === 409 ||
-      error.status === 429 ||
-      error.status >= 500;
+      !outOfQuota &&
+      (error.status === undefined ||
+        error.status === 408 ||
+        error.status === 409 ||
+        error.status === 429 ||
+        error.status >= 500);
     return new TranscriptionProviderError(
-      `OpenAI transcription failed with status ${error.status ?? 'unknown'}.`,
+      outOfQuota
+        ? 'OpenAI rejected the request because the API project has no remaining quota.'
+        : `OpenAI transcription failed with status ${error.status ?? 'unknown'}.`,
       retryable,
     );
   }

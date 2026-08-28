@@ -10,6 +10,7 @@ import type { TranscriptDetail } from '@clipgenius/types';
 
 const transcript: TranscriptDetail = {
   createdAt: '2026-08-28T12:00:00.000Z',
+  diarized: true,
   durationSeconds: 65,
   id: '82c63e3b-97f4-4ab0-9c16-1b93a7798080',
   language: null,
@@ -20,6 +21,7 @@ const transcript: TranscriptDetail = {
   projectId: '5ea74442-0c18-4e90-a009-300fa2f39cbd',
   provider: 'openai',
   segmentCount: 1,
+  speakerCount: 2,
   segments: [
     {
       endSeconds: 65,

@@ -162,6 +162,13 @@ export interface TranscriptSummary {
   readonly provider: string;
   readonly model: string;
   readonly segmentCount: number;
+  /**
+   * Whether the provider attributed speech to speakers. A segment's `speaker`
+   * being null is ambiguous on its own; this records the capability actually
+   * exercised, so downstream analysis never has to infer it from missing data.
+   */
+  readonly diarized: boolean;
+  readonly speakerCount: number | null;
   readonly createdAt: string;
   readonly updatedAt: string;
 }

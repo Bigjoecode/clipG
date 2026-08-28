@@ -144,6 +144,7 @@ export class TranscriptionProcessor extends WorkerHost {
       await this.database.$transaction([
         this.database.transcript.upsert({
           create: {
+            diarized: transcript.diarized,
             durationSeconds: transcript.durationSeconds,
             id: transcriptId,
             language: transcript.language,
@@ -152,13 +153,16 @@ export class TranscriptionProcessor extends WorkerHost {
             organizationId: media.organizationId,
             projectId: media.projectId,
             provider: transcript.provider,
+            speakerCount: transcript.speakerCount,
             text: transcript.text,
           },
           update: {
+            diarized: transcript.diarized,
             durationSeconds: transcript.durationSeconds,
             language: transcript.language,
             model: transcript.model,
             provider: transcript.provider,
+            speakerCount: transcript.speakerCount,
             text: transcript.text,
           },
           where: { mediaAssetId: media.id },
@@ -186,7 +190,11 @@ export class TranscriptionProcessor extends WorkerHost {
         }),
       ]);
       this.logger.log(
-        `Transcribed media ${media.id}: ${transcript.segments.length} segment(s).`,
+        `Transcribed media ${media.id} with ${transcript.provider}: ${transcript.segments.length} segment(s), ${
+          transcript.diarized
+            ? `${transcript.speakerCount ?? 0} speaker(s)`
+            : 'no diarization'
+        }.`,
       );
     } catch (error) {
       const permanent =

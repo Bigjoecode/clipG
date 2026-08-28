@@ -114,11 +114,13 @@ describe('MediaAnalysis', () => {
         probe: probe({ status: 'SUCCEEDED' }),
         transcript: {
           createdAt: '2026-08-28T12:00:00.000Z',
+          diarized: true,
           id: '82c63e3b-97f4-4ab0-9c16-1b93a7798080',
           language: null,
           model: 'gpt-4o-transcribe-diarize',
           provider: 'openai',
           segmentCount: 12,
+          speakerCount: 2,
           updatedAt: '2026-08-28T12:00:00.000Z',
         },
         transcription: probe({

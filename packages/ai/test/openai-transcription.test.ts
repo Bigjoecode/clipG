@@ -1,5 +1,6 @@
 import { fileURLToPath } from 'node:url';
 
+import OpenAI from 'openai';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
@@ -35,6 +36,7 @@ describe('OpenAITranscriptionProvider', () => {
     await expect(
       provider.transcribe({ mediaUri: fixturePath }),
     ).resolves.toEqual({
+      diarized: true,
       durationSeconds: 65.2,
       language: null,
       model: 'gpt-4o-transcribe-diarize',
@@ -47,6 +49,7 @@ describe('OpenAITranscriptionProvider', () => {
           text: 'Welcome everyone.',
         },
       ],
+      speakerCount: 1,
       text: 'Welcome everyone.',
     });
     expect(request.mock.calls[0]?.[0]).toMatchObject({
@@ -67,6 +70,34 @@ describe('OpenAITranscriptionProvider', () => {
     await expect(
       provider.transcribe({ mediaUri: fixturePath }),
     ).rejects.toBeInstanceOf(TranscriptionProviderError);
+  });
+
+  it('treats an exhausted quota as terminal but rate limiting as retryable', async () => {
+    function apiError(code: string) {
+      // The SDK passes the unwrapped `error` body, which is where `code` lives.
+      return new OpenAI.APIError(
+        429,
+        { code, message: 'Too Many Requests', type: 'insufficient_quota' },
+        'Too Many Requests',
+        undefined,
+      );
+    }
+    function providerFor(code: string): OpenAITranscriptionProvider {
+      return new OpenAITranscriptionProvider({
+        apiKey: 'sk-test-placeholder-not-used',
+        model: 'gpt-4o-transcribe-diarize',
+        request: vi.fn().mockRejectedValue(apiError(code)),
+        timeoutMs: 600_000,
+      });
+    }
+
+    // Both arrive as HTTP 429; only the code says whether retrying can help.
+    await expect(
+      providerFor('insufficient_quota').transcribe({ mediaUri: fixturePath }),
+    ).rejects.toMatchObject({ retryable: false });
+    await expect(
+      providerFor('rate_limit_exceeded').transcribe({ mediaUri: fixturePath }),
+    ).rejects.toMatchObject({ retryable: true });
   });
 
   it('marks an ordinary transport failure as retryable', async () => {

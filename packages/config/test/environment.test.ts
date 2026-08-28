@@ -84,16 +84,44 @@ describe('environment validation', () => {
   it('validates worker-only transcription configuration', () => {
     expect(
       parseTranscriptionEnvironment({
-        OPENAI_API_KEY: 'sk-test-transcription-key',
+        DEEPGRAM_API_KEY: 'dg-test-transcription-key',
       }),
     ).toMatchObject({
-      TRANSCRIPTION_MODEL: 'gpt-4o-transcribe-diarize',
       TRANSCRIPTION_MAX_AUDIO_BYTES: 25 * 1024 * 1024,
+      TRANSCRIPTION_PROVIDER: 'deepgram',
     });
     expect(parseTranscriptionJobEnvironment({})).toEqual({
       TRANSCRIPTION_ATTEMPTS: 3,
       TRANSCRIPTION_CONCURRENCY: 1,
     });
     expect(() => parseTranscriptionEnvironment({})).toThrow();
+  });
+
+  it('requires the key belonging to the selected transcription provider', () => {
+    expect(() =>
+      parseTranscriptionEnvironment({
+        OPENAI_API_KEY: 'sk-test-transcription-key',
+      }),
+    ).toThrow(/DEEPGRAM_API_KEY is required/);
+    expect(() =>
+      parseTranscriptionEnvironment({
+        DEEPGRAM_API_KEY: 'dg-test-transcription-key',
+        TRANSCRIPTION_PROVIDER: 'openai',
+      }),
+    ).toThrow(/OPENAI_API_KEY is required/);
+    expect(
+      parseTranscriptionEnvironment({
+        OPENAI_API_KEY: 'sk-test-transcription-key',
+        TRANSCRIPTION_PROVIDER: 'openai',
+      }),
+    ).toMatchObject({ TRANSCRIPTION_PROVIDER: 'openai' });
+  });
+
+  it('leaves the transcription model unset so each provider defaults its own', () => {
+    expect(
+      parseTranscriptionEnvironment({
+        DEEPGRAM_API_KEY: 'dg-test-transcription-key',
+      }).TRANSCRIPTION_MODEL,
+    ).toBeUndefined();
   });
 });

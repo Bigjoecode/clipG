@@ -603,6 +603,106 @@ describe('MediaService', () => {
     expect(result.transcription).toMatchObject({ status: 'QUEUED' });
   });
 
+  it('does not re-transcribe a finished transcript unless asked', async () => {
+    const transcribed = mediaRecord({
+      hasAudio: true,
+      jobs: [
+        probeJob({ status: 'SUCCEEDED' }),
+        transcriptionJob({ status: 'SUCCEEDED' }),
+      ],
+      probedAt: new Date('2026-08-27T12:06:00.000Z'),
+      status: 'UPLOADED',
+    });
+    findMembership.mockResolvedValue({ organizationId });
+    findProject.mockResolvedValue({
+      id: projectId,
+      organizationId,
+      status: 'ACTIVE',
+    });
+    findMedia.mockResolvedValueOnce(transcribed);
+
+    const result = await service.requestTranscription(
+      actor,
+      'creator-studio',
+      projectId,
+      mediaId,
+    );
+
+    expect(upsertJob).not.toHaveBeenCalled();
+    expect(addToTranscriptionQueue).not.toHaveBeenCalled();
+    expect(result.transcription).toMatchObject({ status: 'SUCCEEDED' });
+  });
+
+  it('re-transcribes a finished transcript when replacement is requested', async () => {
+    const transcribed = mediaRecord({
+      hasAudio: true,
+      jobs: [
+        probeJob({ status: 'SUCCEEDED' }),
+        transcriptionJob({ status: 'SUCCEEDED' }),
+      ],
+      probedAt: new Date('2026-08-27T12:06:00.000Z'),
+      status: 'UPLOADED',
+    });
+    findMembership.mockResolvedValue({ organizationId });
+    findProject.mockResolvedValue({
+      id: projectId,
+      organizationId,
+      status: 'ACTIVE',
+    });
+    findMedia.mockResolvedValueOnce(transcribed).mockResolvedValueOnce({
+      ...transcribed,
+      jobs: [
+        probeJob({ status: 'SUCCEEDED' }),
+        transcriptionJob({ status: 'QUEUED' }),
+      ],
+    });
+    upsertJob.mockResolvedValueOnce(transcriptionJob());
+
+    const result = await service.requestTranscription(
+      actor,
+      'creator-studio',
+      projectId,
+      mediaId,
+      { replaceExisting: true },
+    );
+
+    expect(upsertJob.mock.calls[0]?.[0]).toMatchObject({
+      update: { failureReason: null, status: 'QUEUED' },
+    });
+    expect(addToTranscriptionQueue).toHaveBeenCalledOnce();
+    expect(result.transcription).toMatchObject({ status: 'QUEUED' });
+  });
+
+  it('never disturbs transcription that is already running', async () => {
+    const running = mediaRecord({
+      hasAudio: true,
+      jobs: [
+        probeJob({ status: 'SUCCEEDED' }),
+        transcriptionJob({ status: 'RUNNING' }),
+      ],
+      probedAt: new Date('2026-08-27T12:06:00.000Z'),
+      status: 'UPLOADED',
+    });
+    findMembership.mockResolvedValue({ organizationId });
+    findProject.mockResolvedValue({
+      id: projectId,
+      organizationId,
+      status: 'ACTIVE',
+    });
+    findMedia.mockResolvedValueOnce(running);
+
+    const result = await service.requestTranscription(
+      actor,
+      'creator-studio',
+      projectId,
+      mediaId,
+      { replaceExisting: true },
+    );
+
+    expect(addToTranscriptionQueue).not.toHaveBeenCalled();
+    expect(result.transcription).toMatchObject({ status: 'RUNNING' });
+  });
+
   it('rejects transcription when the analyzed video has no audio', async () => {
     findMembership.mockResolvedValueOnce({ organizationId });
     findProject.mockResolvedValueOnce({

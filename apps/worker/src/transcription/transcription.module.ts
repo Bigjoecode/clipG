@@ -3,7 +3,11 @@ import {
   parseTranscriptionEnvironment,
   parseTranscriptionJobEnvironment,
 } from '@clipgenius/config';
-import { OpenAITranscriptionProvider } from '@clipgenius/ai';
+import {
+  DeepgramTranscriptionProvider,
+  OpenAITranscriptionProvider,
+  type TranscriptionProvider,
+} from '@clipgenius/ai';
 import { transcriptionQueueName } from '@clipgenius/types';
 import { FfmpegAudioExtractor } from '@clipgenius/video';
 import { BullModule } from '@nestjs/bullmq';
@@ -19,6 +23,13 @@ import {
 
 const signedUrlLifetimeSeconds = 60 * 60;
 
+/**
+ * Per-provider model defaults. Both diarize, which Task 008 depends on; override
+ * with TRANSCRIPTION_MODEL only for a model that also returns speaker labels.
+ */
+const defaultDeepgramModel = 'nova-2';
+const defaultOpenAIModel = 'gpt-4o-transcribe-diarize';
+
 @Module({
   imports: [BullModule.registerQueue({ name: transcriptionQueueName })],
   providers: [
@@ -33,11 +44,19 @@ const signedUrlLifetimeSeconds = 60 * 60;
     },
     {
       provide: TRANSCRIPTION_PROVIDER,
-      useFactory: (): OpenAITranscriptionProvider => {
+      useFactory: (): TranscriptionProvider => {
         const environment = parseTranscriptionEnvironment(process.env);
-        return new OpenAITranscriptionProvider({
-          apiKey: environment.OPENAI_API_KEY,
-          model: environment.TRANSCRIPTION_MODEL,
+        if (environment.TRANSCRIPTION_PROVIDER === 'openai') {
+          return new OpenAITranscriptionProvider({
+            // The environment schema guarantees the selected provider's key.
+            apiKey: environment.OPENAI_API_KEY ?? '',
+            model: environment.TRANSCRIPTION_MODEL ?? defaultOpenAIModel,
+            timeoutMs: environment.TRANSCRIPTION_TIMEOUT_MS,
+          });
+        }
+        return new DeepgramTranscriptionProvider({
+          apiKey: environment.DEEPGRAM_API_KEY ?? '',
+          model: environment.TRANSCRIPTION_MODEL ?? defaultDeepgramModel,
           timeoutMs: environment.TRANSCRIPTION_TIMEOUT_MS,
         });
       },

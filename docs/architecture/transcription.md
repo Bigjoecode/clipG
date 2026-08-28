@@ -34,15 +34,30 @@ disk, provider, and denial-of-service exposure.
 ## Provider boundary
 
 `@clipgenius/ai` owns `TranscriptionProvider`; the worker depends on that
-contract rather than the OpenAI SDK. The initial adapter uses
-`gpt-4o-transcribe-diarize` with `diarized_json` and automatic chunking. Provider
-data is untrusted and must pass a Zod schema before it can enter the domain.
-OpenAI retries are disabled in the SDK because BullMQ owns the visible retry
-budget and job state.
+contract rather than any provider SDK. `TRANSCRIPTION_PROVIDER` selects the
+adapter, and each supplies its own model default so a shared default can never
+send one provider's model name to another.
 
-`OPENAI_API_KEY` exists only in the worker environment. It must never be exposed
-through a `NEXT_PUBLIC_` variable, browser bundle, API response, log, or committed
-file.
+- **Deepgram** (default) posts the extracted audio to the synchronous
+  pre-recorded endpoint with `diarize_model=latest` and `utterances`, so no
+  polling loop is needed and the job's existing timeout and retry budget apply
+  unchanged.
+- **OpenAI** uses `gpt-4o-transcribe-diarize` with `diarized_json` and automatic
+  chunking. SDK-level retries are disabled because BullMQ owns the visible retry
+  budget and job state.
+
+Both diarize. That is a constraint, not a preference: Task 008 takes speaker data
+as an input, so the transcript records `diarized` and `speakerCount` explicitly
+rather than leaving a null `speaker` to mean either "unattributed segment" or
+"provider cannot attribute at all".
+
+Provider data is untrusted and must pass a Zod schema before it can enter the
+domain.
+
+The provider key — `DEEPGRAM_API_KEY` or `OPENAI_API_KEY` — exists only in the
+worker environment. Only the selected provider's key is required, and neither may
+be exposed through a `NEXT_PUBLIC_` variable, browser bundle, API response, log,
+or committed file.
 
 ## Idempotency and failure behavior
 
@@ -51,6 +66,14 @@ the stable BullMQ job id. Repeated requests return an existing queued, running,
 or successful job. A failed job may be reset and queued again. On successful
 delivery, one database transaction upserts the transcript, replaces its ordered
 segments, and marks the job successful.
+
+A successful transcript may also be re-derived on purpose. `POST` with
+`{ "replaceExisting": true }` re-queues a succeeded job and replaces the
+transcript in place; the source video is immutable, so re-transcribing is always
+safe. Queued or running work is never disturbed, and without the flag the
+endpoint stays idempotent, so a double-clicked button cannot discard a good
+transcript or spend provider credit twice. This is what keeps a provider choice
+reversible instead of a one-way door.
 
 Transient storage and provider failures are retried with exponential backoff.
 Invalid queue data, missing audio, oversize extracted audio, extraction errors,

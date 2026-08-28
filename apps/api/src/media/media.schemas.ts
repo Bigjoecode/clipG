@@ -33,3 +33,19 @@ export const initiateSourceVideoUploadSchema = z
 export type InitiateSourceVideoUploadInput = z.infer<
   typeof initiateSourceVideoUploadSchema
 >;
+
+/**
+ * Re-transcription must be asked for explicitly. Without the flag the endpoint
+ * stays idempotent, so a double-clicked button cannot discard a good transcript
+ * or spend provider credit twice.
+ */
+export const requestTranscriptionSchema = z
+  .object({
+    replaceExisting: z.boolean().default(false),
+  })
+  .strict()
+  .default({ replaceExisting: false });
+
+export type RequestTranscriptionInput = z.infer<
+  typeof requestTranscriptionSchema
+>;

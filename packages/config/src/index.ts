@@ -89,32 +89,47 @@ export const mediaProcessingEnvironmentSchema =
       }),
   });
 
-export const transcriptionEnvironmentSchema =
-  transcriptionJobEnvironmentSchema.extend({
+export const transcriptionEnvironmentSchema = transcriptionJobEnvironmentSchema
+  .extend({
     AUDIO_EXTRACTION_TIMEOUT_MS: z.coerce
       .number()
       .int()
       .min(1_000)
       .max(1_800_000)
       .default(300_000),
-    OPENAI_API_KEY: z.string().trim().min(20),
+    DEEPGRAM_API_KEY: z.string().trim().min(20).optional(),
+    OPENAI_API_KEY: z.string().trim().min(20).optional(),
+    TRANSCRIPTION_PROVIDER: z.enum(['deepgram', 'openai']).default('deepgram'),
     TRANSCRIPTION_MAX_AUDIO_BYTES: z.coerce
       .number()
       .int()
       .min(1)
       .max(100 * 1024 * 1024)
       .default(25 * 1024 * 1024),
-    TRANSCRIPTION_MODEL: z
-      .string()
-      .trim()
-      .min(1)
-      .default('gpt-4o-transcribe-diarize'),
+    // Left without a default so each provider can apply its own; a shared
+    // default would silently send an OpenAI model name to Deepgram.
+    TRANSCRIPTION_MODEL: z.string().trim().min(1).optional(),
     TRANSCRIPTION_TIMEOUT_MS: z.coerce
       .number()
       .int()
       .min(1_000)
       .max(1_800_000)
       .default(600_000),
+  })
+  // Both keys are individually optional so a deployment only carries the
+  // credential it actually uses, but the selected provider must have its own.
+  .superRefine((environment, context) => {
+    const required =
+      environment.TRANSCRIPTION_PROVIDER === 'deepgram'
+        ? 'DEEPGRAM_API_KEY'
+        : 'OPENAI_API_KEY';
+    if (environment[required] === undefined) {
+      context.addIssue({
+        code: 'custom',
+        message: `${required} is required when TRANSCRIPTION_PROVIDER is "${environment.TRANSCRIPTION_PROVIDER}".`,
+        path: [required],
+      });
+    }
   });
 
 export const webEnvironmentSchema = z.object({

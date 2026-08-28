@@ -115,3 +115,13 @@ The AI layer must never generate shell commands, storage credentials, or unrestr
 ## Current milestone boundary
 
 Task 007 transcribes an analyzed source into full text and timestamped speaker segments. It does not define content intelligence, an Edit Plan, content opportunities, or rendering behavior.
+
+### Transcription provider selection
+
+Transcription sits behind the domain-level `TranscriptionProvider` contract, and `TRANSCRIPTION_PROVIDER` selects the implementation. Deepgram is the default and OpenAI remains available; both return speaker-attributed segments.
+
+Diarization is a selection constraint rather than a preference. This document commits Task 007 to "timestamped speaker segments", and the engineering instructions name speaker data as a Content Intelligence input, so a provider that returns only plain segments would silently narrow what Task 008 can be built on. Adopting one requires changing those commitments first, deliberately.
+
+Because a segment's `speaker` may legitimately be null even under a diarizing provider, capability is recorded explicitly on the transcript rather than inferred from the data: `diarized` states whether attribution was actually performed, and `speakerCount` records how many distinct speakers were found. Downstream analysis reads the flag instead of guessing from missing values.
+
+Transcripts are derived data, never source media. A source video is immutable and a transcript can always be re-derived from it, so re-transcription is supported: `POST .../media/:mediaId/transcribe` with `{ "replaceExisting": true }` re-queues a finished transcript and replaces it in place. Without the flag the endpoint stays idempotent, and work already queued or running is never disturbed. This is what keeps provider choice reversible when pricing, quality, or credit availability changes.

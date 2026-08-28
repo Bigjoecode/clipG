@@ -120,6 +120,7 @@ describe('TranscriptionProcessor', () => {
       sizeBytes: 512,
     });
     transcribe.mockResolvedValue({
+      diarized: true,
       durationSeconds: 65,
       language: null,
       model: 'gpt-4o-transcribe-diarize',
@@ -132,9 +133,40 @@ describe('TranscriptionProcessor', () => {
           text: 'Welcome everyone.',
         },
       ],
+      speakerCount: 1,
       text: 'Welcome everyone.',
     });
     discardTemporaryMedia.mockResolvedValue(undefined);
+  });
+
+  it('records whether the provider actually diarized the transcript', async () => {
+    await processor().process(queuedJob());
+
+    expect(upsertTranscript.mock.calls[0]?.[0]).toMatchObject({
+      create: { diarized: true, speakerCount: 1 },
+      update: { diarized: true, speakerCount: 1 },
+    });
+  });
+
+  it('records a non-diarizing provider without implying zero speakers', async () => {
+    transcribe.mockResolvedValue({
+      diarized: false,
+      durationSeconds: 65,
+      language: null,
+      model: 'whisper-large-v3',
+      provider: 'other',
+      segments: [
+        { endSeconds: 4, speaker: null, startSeconds: 0, text: 'Hello.' },
+      ],
+      speakerCount: null,
+      text: 'Hello.',
+    });
+
+    await processor().process(queuedJob());
+
+    expect(upsertTranscript.mock.calls[0]?.[0]).toMatchObject({
+      create: { diarized: false, speakerCount: null },
+    });
   });
 
   it('extracts audio and atomically stores transcript segments', async () => {

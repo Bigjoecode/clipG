@@ -202,6 +202,12 @@ model Transcript {
   language        String?  @db.VarChar(16)
   text            String   @db.Text
   durationSeconds Float?   @map("duration_seconds")
+  // Whether the provider actually attributed speech to speakers. Without this a
+  // null segment speaker is ambiguous: it could mean the provider cannot
+  // diarize at all, or that it diarized but left one segment unattributed.
+  // Content intelligence must be able to tell those apart.
+  diarized        Boolean  @default(false)
+  speakerCount    Int?     @map("speaker_count")
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 

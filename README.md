@@ -43,12 +43,21 @@ out of any `NEXT_PUBLIC_` variable. FFmpeg does not need to be installed — the
 worker uses the platform ffprobe binary bundled with `@clipgenius/video`. See
 [media processing architecture](docs/architecture/media-processing.md).
 
-Timestamped transcription additionally requires a server-only `OPENAI_API_KEY`.
-The worker extracts a compact mono speech track with its bundled FFmpeg binary,
-then sends only that audio to the configured transcription provider. Never put
-the key in a `NEXT_PUBLIC_` variable. The model, retry, concurrency, size, and
-timeout defaults are documented in `.env.example`; see the
-[transcription architecture](docs/architecture/transcription.md).
+Timestamped transcription additionally requires a server-only API key for the
+selected provider: `DEEPGRAM_API_KEY` by default, or `OPENAI_API_KEY` when
+`TRANSCRIPTION_PROVIDER=openai`. Deepgram is the default because it diarizes on
+free signup credit, and Task 008 content intelligence takes speaker data as an
+input. The worker extracts a compact mono speech track with its bundled FFmpeg
+binary, then sends only that audio to the provider. Never put either key in a
+`NEXT_PUBLIC_` variable. The model, retry, concurrency, size, and timeout
+defaults are documented in `.env.example`; see the
+[transcription architecture](docs/architecture/transcription.md) and the
+[provider selection note](docs/ai/architecture.md).
+
+A transcript is derived data, so it can be re-made: `POST` to
+`/organizations/:slug/projects/:projectId/media/:mediaId/transcribe` with
+`{"replaceExisting": true}` re-transcribes and replaces an existing transcript,
+which is how you move between providers without re-uploading the video.
 
 To use local PostgreSQL and Redis instead, start Docker Desktop and run
 `corepack pnpm services:up` before applying migrations. Supabase Auth and Storage

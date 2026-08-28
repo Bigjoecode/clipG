@@ -30,6 +30,9 @@ export interface TranscriptionResult {
   readonly provider: string;
   readonly segments: readonly TranscriptionSegment[];
   readonly text: string;
+  /** Whether this provider attributed speech to speakers for this request. */
+  readonly diarized: boolean;
+  readonly speakerCount: number | null;
 }
 
 export interface TranscriptionProvider {
@@ -49,3 +52,6 @@ export {
   TranscriptionProviderError,
 } from './openai-transcription.js';
 export type { OpenAITranscriptionProviderOptions } from './openai-transcription.js';
+export { DeepgramTranscriptionProvider } from './deepgram-transcription.js';
+export type { DeepgramTranscriptionProviderOptions } from './deepgram-transcription.js';
+export { distinctSpeakerCount } from './speakers.js';

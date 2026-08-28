@@ -28,7 +28,10 @@ import { DATABASE_CLIENT } from '../database/database.module.js';
 import { normalizeOrganizationSlug } from '../organizations/organizations.service.js';
 import { DIRECT_UPLOAD_STORAGE } from '../storage/storage.module.js';
 
-import type { InitiateSourceVideoUploadInput } from './media.schemas.js';
+import type {
+  InitiateSourceVideoUploadInput,
+  RequestTranscriptionInput,
+} from './media.schemas.js';
 import type {
   AuthenticatedUser,
   MediaAssetSummary,
@@ -327,6 +330,7 @@ export class MediaService {
     organizationSlug: string,
     projectId: string,
     mediaId: string,
+    input: RequestTranscriptionInput = { replaceExisting: false },
   ): Promise<MediaAssetSummary> {
     const media = await this.accessibleMedia(
       actor.id,
@@ -350,7 +354,15 @@ export class MediaService {
     }
     const existing = transcriptionJobOf(media.jobs);
     if (existing !== undefined && existing.status !== 'FAILED') {
-      return this.toSummary(media);
+      // Work already in flight is never disturbed. A succeeded transcript is
+      // only re-derived when the caller explicitly asks, which is what makes a
+      // provider change reversible: the source media is immutable, so
+      // re-transcribing is always safe, just not free.
+      const inFlight =
+        existing.status === 'QUEUED' || existing.status === 'RUNNING';
+      if (inFlight || !input.replaceExisting) {
+        return this.toSummary(media);
+      }
     }
     await this.queueTranscription(media, { restart: existing !== undefined });
     const refreshed = await this.accessibleMedia(
@@ -383,6 +395,7 @@ export class MediaService {
     }
     return {
       createdAt: transcript.createdAt.toISOString(),
+      diarized: transcript.diarized,
       durationSeconds: transcript.durationSeconds,
       id: transcript.id,
       language: transcript.language,
@@ -393,6 +406,7 @@ export class MediaService {
       projectId: transcript.projectId,
       provider: transcript.provider,
       segmentCount: transcript.segments.length,
+      speakerCount: transcript.speakerCount,
       segments: transcript.segments.map((segment) => ({
         endSeconds: segment.endSeconds,
         id: segment.id,
@@ -681,11 +695,13 @@ function toTranscriptSummary(
 ): TranscriptSummary {
   return {
     createdAt: transcript.createdAt.toISOString(),
+    diarized: transcript.diarized,
     id: transcript.id,
     language: transcript.language,
     model: transcript.model,
     provider: transcript.provider,
     segmentCount: transcript._count.segments,
+    speakerCount: transcript.speakerCount,
     updatedAt: transcript.updatedAt.toISOString(),
   };
 }

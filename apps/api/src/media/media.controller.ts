@@ -16,7 +16,9 @@ import { AuthenticationGuard } from '../auth/authentication.guard.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import {
   initiateSourceVideoUploadSchema,
+  requestTranscriptionSchema,
   type InitiateSourceVideoUploadInput,
+  type RequestTranscriptionInput,
 } from './media.schemas.js';
 import { MediaService } from './media.service.js';
 
@@ -99,12 +101,15 @@ export class MediaController {
     @Param('organizationSlug') organizationSlug: string,
     @Param('projectId') projectId: string,
     @Param('mediaId') mediaId: string,
+    @Body(new ZodValidationPipe(requestTranscriptionSchema))
+    input: RequestTranscriptionInput,
   ): Promise<MediaAssetSummary> {
     return this.media.requestTranscription(
       user,
       organizationSlug,
       projectId,
       mediaId,
+      input,
     );
   }
 
