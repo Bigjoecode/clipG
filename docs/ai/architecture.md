@@ -112,6 +112,10 @@ The future Edit Plan will contain constrained typed operations such as keep, rem
 
 The AI layer must never generate shell commands, storage credentials, or unrestricted renderer arguments.
 
+### Editing Language
+
+Task 009 introduces the deterministic ClipGenius Editing Language in `packages/editing-language`: a versioned, typed, renderer-neutral description of what should happen to media. It is the contract between the future Creative Director and the future video engine, and it depends on no AI provider and no rendering technology. See [editing language](editing-language.md).
+
 ## Current milestone boundary
 
 Task 008 turns a completed transcript into durable Content Intelligence and source-timed Content Opportunities. It does not create an Edit Plan, choose final clips, edit media, or render output.
