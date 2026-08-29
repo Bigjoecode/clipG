@@ -1,12 +1,12 @@
+import { z } from 'zod';
+
 import {
   ContentIntelligenceProviderError,
-  contentIntelligencePlatforms,
-  contentIntelligenceOpportunityTypes,
+  contentIntelligenceResultSchema,
   contentIntelligenceUserPrompt,
-  maxContentIntelligenceOpportunities,
   parseContentIntelligence,
 } from './content-intelligence-result.js';
-import { emptyAiUsage, finiteUsageCount } from './usage.js';
+import { emptyAiUsage, finiteUsageCount, type AiUsage } from './usage.js';
 
 import type {
   ContentIntelligenceProvider,
@@ -14,100 +14,66 @@ import type {
   ContentIntelligenceResult,
 } from './index.js';
 
-const defaultBaseUrl = 'https://generativelanguage.googleapis.com/v1beta';
-
-const scoreProperty = {
-  maximum: 100,
-  minimum: 0,
-  type: 'INTEGER',
-} as const;
+const defaultBaseUrl =
+  'https://generativelanguage.googleapis.com/v1beta/interactions';
 
 /**
- * Gemini constrains decoding to an OpenAPI-subset schema rather than full JSON
- * Schema, so the shape is declared here instead of derived from Zod. It is a
- * decoding hint, not the gate: `parseContentIntelligence` still validates the
- * response against the canonical Zod schema and grounds it in the transcript.
- * `gemini-content-intelligence.test.ts` asserts the two agree on keys, types,
- * and enums so this cannot drift silently.
+ * Pins the request contract this adapter was written against.
+ *
+ * Google made the new structured-output shape the default on 2026-05-26 and
+ * sunset the previous one on 2026-06-08. Sending the revision explicitly means a
+ * future default change cannot silently reinterpret our requests.
  */
-export const geminiContentIntelligenceSchema = {
-  properties: {
-    keywords: { items: { type: 'STRING' }, maxItems: 30, type: 'ARRAY' },
-    opportunities: {
-      items: {
-        properties: {
-          endSeconds: { type: 'NUMBER' },
-          evidenceText: { type: 'STRING' },
-          hook: { type: 'STRING' },
-          rationale: { type: 'STRING' },
-          recommendedDurationSeconds: { type: 'INTEGER' },
-          recommendedPlatforms: {
-            items: { enum: [...contentIntelligencePlatforms], type: 'STRING' },
-            maxItems: 4,
-            minItems: 1,
-            type: 'ARRAY',
-          },
-          scores: {
-            properties: {
-              clarity: scoreProperty,
-              emotionalImpact: scoreProperty,
-              hook: scoreProperty,
-              platformFit: scoreProperty,
-              retentionPotential: scoreProperty,
-              standaloneValue: scoreProperty,
-            },
-            propertyOrdering: [
-              'clarity',
-              'emotionalImpact',
-              'hook',
-              'platformFit',
-              'retentionPotential',
-              'standaloneValue',
-            ],
-            required: [
-              'clarity',
-              'emotionalImpact',
-              'hook',
-              'platformFit',
-              'retentionPotential',
-              'standaloneValue',
-            ],
-            type: 'OBJECT',
-          },
-          startSeconds: { type: 'NUMBER' },
-          summary: { type: 'STRING' },
-          title: { type: 'STRING' },
-          topic: { type: 'STRING' },
-          type: {
-            enum: [...contentIntelligenceOpportunityTypes],
-            type: 'STRING',
-          },
-        },
-        required: [
-          'endSeconds',
-          'evidenceText',
-          'hook',
-          'rationale',
-          'recommendedDurationSeconds',
-          'recommendedPlatforms',
-          'scores',
-          'startSeconds',
-          'summary',
-          'title',
-          'topic',
-          'type',
-        ],
-        type: 'OBJECT',
-      },
-      maxItems: maxContentIntelligenceOpportunities,
-      type: 'ARRAY',
-    },
-    summary: { type: 'STRING' },
-    topics: { items: { type: 'STRING' }, maxItems: 30, type: 'ARRAY' },
-  },
-  required: ['keywords', 'opportunities', 'summary', 'topics'],
-  type: 'OBJECT',
-} as const;
+export const geminiApiRevision = '2026-05-20';
+
+/**
+ * JSON Schema keywords the Interactions API validator rejects.
+ *
+ * Established by live bisection against `gemini-3.7-flash`: the canonical schema
+ * is accepted with every other constraint intact — enums, nested objects, arrays
+ * of objects, `minimum`/`maximum`, `minLength`/`maxLength`, `additionalProperties`
+ * and `required` — and rejected with a bare `400 invalid_request` the moment
+ * array bounds appear. Removing only these two keywords turns the identical
+ * request into a 200.
+ *
+ * Dropping them costs nothing in correctness: array bounds remain enforced by
+ * the canonical Zod schema when the response is validated on the way back in.
+ */
+const unsupportedSchemaKeywords: readonly string[] = ['minItems', 'maxItems'];
+
+function adaptSchemaForGemini(node: unknown): unknown {
+  if (Array.isArray(node)) {
+    return node.map((entry) => adaptSchemaForGemini(entry));
+  }
+  if (node === null || typeof node !== 'object') {
+    return node;
+  }
+  const adapted: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(node)) {
+    // `$schema` is JSON Schema metadata rather than a constraint.
+    if (key === '$schema' || unsupportedSchemaKeywords.includes(key)) {
+      continue;
+    }
+    adapted[key] = adaptSchemaForGemini(value);
+  }
+  return adapted;
+}
+
+/**
+ * The provider-specific schema, derived from the canonical Zod schema rather
+ * than written by hand.
+ *
+ * This is the provider-boundary rule in one function: the canonical schema stays
+ * authoritative, Gemini's constraints are absorbed here, and no Gemini
+ * limitation reaches the domain model. An earlier version of this adapter kept a
+ * second schema written by hand, which needed a parity test to stop the two
+ * drifting apart — deriving it removes that failure mode entirely.
+ */
+export function geminiContentIntelligenceSchema(): Record<string, unknown> {
+  return adaptSchemaForGemini(
+    z.toJSONSchema(contentIntelligenceResultSchema, { io: 'output' }),
+  ) as Record<string, unknown>;
+}
 
 export interface GeminiContentIntelligenceProviderOptions {
   readonly apiKey: string;
@@ -118,35 +84,29 @@ export interface GeminiContentIntelligenceProviderOptions {
   readonly fetchImplementation?: typeof fetch;
 }
 
-interface GeminiCandidate {
-  readonly content?: { readonly parts?: readonly { readonly text?: string }[] };
-  readonly finishReason?: string;
+interface InteractionStep {
+  readonly content?: readonly { readonly text?: string }[];
 }
 
-interface GeminiResponse {
+interface InteractionResponse {
   readonly id?: string;
   readonly output_text?: string;
   readonly status?: string;
+  readonly steps?: readonly InteractionStep[];
   readonly usage?: {
     readonly total_cached_tokens?: number;
     readonly total_input_tokens?: number;
     readonly total_output_tokens?: number;
     readonly total_thought_tokens?: number;
   };
-  readonly steps?: readonly unknown[];
-  readonly candidates?: readonly GeminiCandidate[];
-  readonly promptFeedback?: { readonly blockReason?: string };
 }
 
 /**
- * Google Gemini behind the domain-level ContentIntelligenceProvider contract.
+ * Google Gemini behind the domain-level ContentIntelligenceProvider contract,
+ * on the Interactions API.
  *
- * Chosen for its native `responseSchema`, which constrains decoding rather than
- * merely asking for JSON — that matters for a schema this large, because every
- * malformed response costs a full retry of a long transcript.
- *
- * Uses the REST endpoint directly so the workspace gains no additional SDK
- * dependency, matching how the Deepgram adapter is built.
+ * Uses REST directly so the workspace gains no additional SDK dependency,
+ * matching how the Deepgram adapter is built.
  */
 export class GeminiContentIntelligenceProvider implements ContentIntelligenceProvider {
   private readonly fetchImplementation: typeof fetch;
@@ -161,8 +121,6 @@ export class GeminiContentIntelligenceProvider implements ContentIntelligencePro
     request: ContentIntelligenceRequest,
   ): Promise<ContentIntelligenceResult> {
     const startedAt = Date.now();
-    const base = this.options.baseUrl ?? defaultBaseUrl;
-    const url = `${base}/interactions`;
     const controller = new AbortController();
     const timeout = setTimeout(() => {
       controller.abort();
@@ -170,110 +128,70 @@ export class GeminiContentIntelligenceProvider implements ContentIntelligencePro
 
     let response: Response;
     try {
-      response = await this.fetchImplementation(url, {
-        body: JSON.stringify({
-          input: contentIntelligenceUserPrompt(request),
-          model: this.options.model,
-          response_format: {
-            mime_type: 'application/json',
-            schema: JSON.parse(
-              JSON.stringify(geminiContentIntelligenceSchema).replace(
-                /"type":"([A-Z]+)"/g,
-                (_match, type: string) => `"type":"${type.toLowerCase()}"`,
-              ),
-            ) as unknown,
-            type: 'text',
+      response = await this.fetchImplementation(
+        this.options.baseUrl ?? defaultBaseUrl,
+        {
+          body: JSON.stringify({
+            input: contentIntelligenceUserPrompt(request),
+            model: this.options.model,
+            response_format: {
+              mime_type: 'application/json',
+              schema: geminiContentIntelligenceSchema(),
+              type: 'text',
+            },
+            system_instruction: request.systemPrompt,
+          }),
+          headers: {
+            'Api-Revision': geminiApiRevision,
+            'Content-Type': 'application/json',
+            // Sent as a header rather than a query parameter so the key cannot
+            // leak through request logs or error URLs.
+            'x-goog-api-key': this.options.apiKey,
           },
-          store: false,
-          system_instruction: request.systemPrompt,
-        }),
-        headers: {
-          'Content-Type': 'application/json',
-          // Sent as a header rather than a query parameter so the key cannot
-          // leak through request logs or error URLs.
-          'x-goog-api-key': this.options.apiKey,
+          method: 'POST',
+          signal: controller.signal,
         },
-        method: 'POST',
-        signal: controller.signal,
-      });
+      );
     } catch (error) {
       throw new ContentIntelligenceProviderError(
         `Gemini content analysis could not be reached: ${
           error instanceof Error ? error.message : 'unknown error'
         }`,
         true,
-        error instanceof Error && error.name === 'AbortError'
-          ? 'TIMEOUT'
-          : 'PROVIDER_UNAVAILABLE',
+        'PROVIDER_UNAVAILABLE',
         emptyAiUsage(Date.now() - startedAt),
       );
     } finally {
       clearTimeout(timeout);
     }
 
+    const body = await this.readBody(response, startedAt);
+    const usage = toUsage(body, Date.now() - startedAt);
+
     if (!response.ok) {
-      throw new ContentIntelligenceProviderError(
-        response.status === 429
-          ? 'Gemini rate limited content analysis or the request quota is exhausted.'
-          : `Gemini content analysis failed with status ${response.status}.`,
-        response.status === 429 || response.status >= 500,
-        response.status === 401 || response.status === 403
-          ? 'AUTHENTICATION'
-          : response.status === 429
-            ? 'RATE_LIMIT'
-            : response.status >= 500
-              ? 'PROVIDER_UNAVAILABLE'
-              : 'INVALID_REQUEST',
-        emptyAiUsage(
-          Date.now() - startedAt,
-          response.headers.get('x-request-id'),
-        ),
-      );
+      throw httpError(response.status, usage);
     }
-
-    let body: GeminiResponse;
-    try {
-      body = (await response.json()) as GeminiResponse;
-    } catch {
+    if (body.status !== undefined && body.status !== 'completed') {
       throw new ContentIntelligenceProviderError(
-        'Gemini returned a response that was not JSON.',
+        `Gemini did not complete the analysis (status ${body.status}).`,
         true,
-        'INVALID_RESPONSE',
-        emptyAiUsage(Date.now() - startedAt),
-      );
-    }
-
-    if (body.promptFeedback?.blockReason !== undefined) {
-      throw new ContentIntelligenceProviderError(
-        `Gemini declined to analyze this transcript (${body.promptFeedback.blockReason}).`,
-        false,
-        'CONTENT_POLICY',
-        emptyAiUsage(Date.now() - startedAt, body.id ?? null),
-      );
-    }
-
-    const candidate = body.candidates?.[0];
-    // A truncated candidate yields unparseable JSON; say so plainly rather than
-    // reporting it as a schema violation.
-    if (candidate?.finishReason === 'MAX_TOKENS') {
-      throw new ContentIntelligenceProviderError(
-        'Gemini truncated the analysis before it was complete.',
-        true,
-        'INVALID_RESPONSE',
-        emptyAiUsage(Date.now() - startedAt, body.id ?? null),
+        'PROVIDER_UNAVAILABLE',
+        usage,
       );
     }
 
     const text =
       body.output_text ??
-      candidate?.content?.parts?.map((part) => part.text ?? '').join('') ??
-      findInteractionText(body.steps);
-    if (text === undefined || text.trim() === '') {
+      (body.steps ?? [])
+        .flatMap((step) => step.content ?? [])
+        .map((part) => part.text ?? '')
+        .join('');
+    if (text.trim() === '') {
       throw new ContentIntelligenceProviderError(
         'Gemini returned no content analysis.',
         true,
         'INVALID_RESPONSE',
-        emptyAiUsage(Date.now() - startedAt, body.id ?? null),
+        usage,
       );
     }
 
@@ -285,20 +203,10 @@ export class GeminiContentIntelligenceProvider implements ContentIntelligencePro
         'Gemini returned content intelligence that was not valid JSON.',
         true,
         'INVALID_RESPONSE',
-        emptyAiUsage(Date.now() - startedAt, body.id ?? null),
+        usage,
       );
     }
 
-    const usage = {
-      ...emptyAiUsage(
-        Date.now() - startedAt,
-        body.id ?? response.headers.get('x-request-id'),
-      ),
-      cachedInputTokens: finiteUsageCount(body.usage?.total_cached_tokens),
-      inputTokens: finiteUsageCount(body.usage?.total_input_tokens),
-      outputTokens: finiteUsageCount(body.usage?.total_output_tokens),
-      reasoningTokens: finiteUsageCount(body.usage?.total_thought_tokens),
-    };
     return {
       ...parseContentIntelligence(
         raw,
@@ -309,29 +217,71 @@ export class GeminiContentIntelligenceProvider implements ContentIntelligencePro
       usage,
     };
   }
+
+  private async readBody(
+    response: Response,
+    startedAt: number,
+  ): Promise<InteractionResponse> {
+    try {
+      return (await response.json()) as InteractionResponse;
+    } catch {
+      if (response.ok) {
+        throw new ContentIntelligenceProviderError(
+          'Gemini returned a response that was not JSON.',
+          true,
+          'INVALID_RESPONSE',
+          emptyAiUsage(Date.now() - startedAt),
+        );
+      }
+      return {};
+    }
+  }
 }
 
-function findInteractionText(
-  steps: readonly unknown[] | undefined,
-): string | undefined {
-  if (steps === undefined) return undefined;
-  const visit = (value: unknown): string | undefined => {
-    if (typeof value === 'object' && value !== null) {
-      const record = value as Record<string, unknown>;
-      if (record.type === 'text' && typeof record.text === 'string') {
-        return record.text;
-      }
-      for (const child of Object.values(record)) {
-        const found = visit(child);
-        if (found !== undefined) return found;
-      }
-    } else if (Array.isArray(value)) {
-      for (const child of value) {
-        const found = visit(child);
-        if (found !== undefined) return found;
-      }
-    }
-    return undefined;
+function toUsage(body: InteractionResponse, latencyMs: number): AiUsage {
+  return {
+    ...emptyAiUsage(latencyMs, body.id ?? null),
+    cachedInputTokens: finiteUsageCount(body.usage?.total_cached_tokens),
+    inputTokens: finiteUsageCount(body.usage?.total_input_tokens),
+    outputTokens: finiteUsageCount(body.usage?.total_output_tokens),
+    reasoningTokens: finiteUsageCount(body.usage?.total_thought_tokens),
   };
-  return visit(steps);
+}
+
+function httpError(
+  status: number,
+  usage: AiUsage,
+): ContentIntelligenceProviderError {
+  if (status === 401 || status === 403) {
+    return new ContentIntelligenceProviderError(
+      'Gemini rejected the API key for content analysis.',
+      false,
+      'AUTHENTICATION',
+      usage,
+    );
+  }
+  if (status === 429) {
+    // Rate limiting and an exhausted daily quota both arrive as 429. One bounded
+    // retry is worth attempting either way; the ledger records what happened.
+    return new ContentIntelligenceProviderError(
+      'Gemini rate limited content analysis or the request quota is exhausted.',
+      true,
+      'RATE_LIMIT',
+      usage,
+    );
+  }
+  if (status >= 500) {
+    return new ContentIntelligenceProviderError(
+      `Gemini content analysis failed with status ${status}.`,
+      true,
+      'PROVIDER_UNAVAILABLE',
+      usage,
+    );
+  }
+  return new ContentIntelligenceProviderError(
+    `Gemini content analysis failed with status ${status}.`,
+    false,
+    'INVALID_REQUEST',
+    usage,
+  );
 }

@@ -128,7 +128,24 @@ The worker sends the versioned `content-intelligence` prompt, project context, t
 
 Content intelligence sits behind `ContentIntelligenceProvider`, and `CONTENT_INTELLIGENCE_PROVIDER` selects the implementation: Google Gemini (the default), OpenAI Structured Outputs, or optional Anthropic. Each supplies its own model default so a shared default cannot send one provider's model name to another.
 
-OpenAI and Anthropic accept the canonical Zod schema directly. Gemini uses the current stateless Interactions API with `response_format` and an OpenAPI-subset schema guarded by a parity test. This replaces the legacy `generateContent` path that rejected the complete opportunity schema.
+All three adapters send the canonical Zod schema; none maintains a second schema by hand.
+
+Gemini uses the Interactions API (`POST /v1beta/interactions`) with `response_format: { type: 'text', mime_type: 'application/json', schema }`, pinning `Api-Revision: 2026-05-20` so a future default change cannot silently reinterpret the request. The schema is derived from the canonical Zod schema with `z.toJSONSchema()`.
+
+That endpoint's validator rejects two JSON Schema keywords — `minItems` and `maxItems` — with a bare `400 invalid_request`. This was established by live bisection: the canonical schema is accepted with every other constraint intact (enums, nested objects, arrays of objects, `minimum`/`maximum`, `minLength`/`maxLength`, `additionalProperties`, `required`) and rejected the moment array bounds appear. The adapter strips exactly those two keywords at the provider boundary and nothing else.
+
+Stripping them costs no correctness: array bounds stay enforced by the canonical schema when the response is validated on the way back, and a regression test feeds an over-length response through the adapter to prove the cap is still real. The earlier hand-written OpenAPI-subset schema and its parity test are gone — deriving the schema removes that drift risk entirely.
+
+This replaces the legacy `generateContent` path, whose OpenAPI-subset validator rejected the complete opportunity schema.
+
+**Verifying a provider is live.** A mocked adapter test cannot catch a provider rejecting the schema — every mocked Gemini test passed while the real call returned 400. `packages/ai/test/gemini-live.integration.test.ts` makes one real request against a tiny fixture and is skipped unless `CLIPGENIUS_LIVE_GEMINI=1` and `GEMINI_API_KEY` are both set, so `pnpm validate` still needs no key and costs nothing:
+
+```bash
+CLIPGENIUS_LIVE_GEMINI=1 corepack pnpm --filter @clipgenius/ai test
+# optionally: CLIPGENIUS_LIVE_GEMINI_MODEL=gemini-3.7-flash
+```
+
+Both `gemini-3.6-flash` and `gemini-3.7-flash` have been verified live end to end. `gemini-3.6-flash` remains the default: the fix is API-level rather than model-level, and there is no measured reason to move.
 
 Both constrain decoding to a schema rather than merely requesting JSON. That is a selection constraint: the opportunity schema is large, and every malformed response costs a full retry over an entire transcript, so a provider that can only be asked politely for JSON is materially more expensive to run.
 

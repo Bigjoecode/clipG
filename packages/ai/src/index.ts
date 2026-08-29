@@ -135,6 +135,7 @@ export { AnthropicContentIntelligenceProvider } from './anthropic-content-intell
 export type { AnthropicContentIntelligenceProviderOptions } from './anthropic-content-intelligence.js';
 export {
   GeminiContentIntelligenceProvider,
+  geminiApiRevision,
   geminiContentIntelligenceSchema,
 } from './gemini-content-intelligence.js';
 export type { GeminiContentIntelligenceProviderOptions } from './gemini-content-intelligence.js';

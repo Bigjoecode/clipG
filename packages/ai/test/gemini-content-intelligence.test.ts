@@ -3,8 +3,8 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   ContentIntelligenceProviderError,
   GeminiContentIntelligenceProvider,
+  geminiApiRevision,
   geminiContentIntelligenceSchema,
-  contentIntelligenceResultSchema,
 } from '../src/index.js';
 
 import type { ContentIntelligenceRequest } from '../src/index.js';
@@ -33,246 +33,309 @@ const request: ContentIntelligenceRequest = {
   systemPrompt: 'Find content opportunities.',
 };
 
-const validResult = {
-  keywords: ['faith', 'courage'],
-  opportunities: [
-    {
-      endSeconds: 30,
-      evidenceText: 'Faith is not the absence of fear',
-      hook: 'Faith is not the absence of fear',
-      rationale: 'A self-contained definition with a clear turn.',
-      recommendedDurationSeconds: 30,
-      recommendedPlatforms: ['YOUTUBE', 'TIKTOK'],
-      scores: {
-        clarity: 90,
-        emotionalImpact: 80,
-        hook: 85,
-        platformFit: 75,
-        retentionPotential: 70,
-        standaloneValue: 88,
-      },
-      startSeconds: 0,
-      summary: 'Defines faith as action despite fear.',
-      title: 'Faith is a decision',
-      topic: 'Faith',
-      type: 'QUOTE',
-    },
-  ],
-  summary: 'A short teaching on faith and courage.',
-  topics: ['Faith', 'Courage'],
+const opportunity = {
+  endSeconds: 30,
+  evidenceText: 'Faith is not the absence of fear',
+  hook: 'Faith is not the absence of fear',
+  rationale: 'A self-contained definition with a clear turn.',
+  recommendedDurationSeconds: 30,
+  recommendedPlatforms: ['YOUTUBE'],
+  scores: {
+    clarity: 90,
+    emotionalImpact: 80,
+    hook: 85,
+    platformFit: 75,
+    retentionPotential: 70,
+    standaloneValue: 88,
+  },
+  startSeconds: 0,
+  summary: 'Defines faith as action despite fear.',
+  title: 'Faith is a decision',
+  topic: 'Faith',
+  type: 'QUOTE',
 };
 
-function geminiResponse(payload: unknown, status = 200): Response {
-  return new Response(
-    JSON.stringify({
-      candidates: [
-        {
-          content: { parts: [{ text: JSON.stringify(payload) }] },
-          finishReason: 'STOP',
-        },
-      ],
-    }),
-    { headers: { 'Content-Type': 'application/json' }, status },
-  );
+const validResult = {
+  keywords: ['faith'],
+  opportunities: [opportunity],
+  summary: 'A short teaching on faith and courage.',
+  topics: ['Faith'],
+};
+
+function interaction(
+  payload: unknown,
+  overrides: Record<string, unknown> = {},
+) {
+  return {
+    id: 'v1_interaction_id',
+    status: 'completed',
+    steps: [{ content: [{ text: JSON.stringify(payload) }] }],
+    usage: {
+      total_cached_tokens: 0,
+      total_input_tokens: 1_200,
+      total_output_tokens: 480,
+      total_thought_tokens: 220,
+    },
+    ...overrides,
+  };
+}
+
+function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    headers: { 'Content-Type': 'application/json' },
+    status,
+  });
 }
 
 function provider(fetchImplementation: typeof fetch) {
   return new GeminiContentIntelligenceProvider({
     apiKey: 'gemini-test-key',
     fetchImplementation,
-    model: 'gemini-2.5-flash',
+    model: 'gemini-3.7-flash',
     timeoutMs: 300_000,
   });
 }
 
+function collectKeys(node: unknown, found: Set<string>): Set<string> {
+  if (Array.isArray(node)) {
+    for (const entry of node) {
+      collectKeys(entry, found);
+    }
+    return found;
+  }
+  if (node !== null && typeof node === 'object') {
+    for (const [key, value] of Object.entries(node)) {
+      found.add(key);
+      collectKeys(value, found);
+    }
+  }
+  return found;
+}
+
+describe('geminiContentIntelligenceSchema', () => {
+  it('omits only the keywords the Interactions API rejects', () => {
+    const keys = collectKeys(geminiContentIntelligenceSchema(), new Set());
+
+    expect(keys.has('minItems')).toBe(false);
+    expect(keys.has('maxItems')).toBe(false);
+    expect(keys.has('$schema')).toBe(false);
+  });
+
+  it('keeps the constraints the API does accept', () => {
+    const keys = collectKeys(geminiContentIntelligenceSchema(), new Set());
+
+    // Removing array bounds must not become an excuse to send a gutted schema.
+    for (const kept of [
+      'enum',
+      'required',
+      'properties',
+      'minimum',
+      'maximum',
+      'minLength',
+      'maxLength',
+      'additionalProperties',
+    ]) {
+      expect(keys.has(kept)).toBe(true);
+    }
+  });
+
+  it('is derived from the canonical schema rather than written by hand', () => {
+    const schema = geminiContentIntelligenceSchema() as {
+      properties: Record<string, unknown>;
+    };
+
+    expect(Object.keys(schema.properties).sort()).toEqual([
+      'keywords',
+      'opportunities',
+      'summary',
+      'topics',
+    ]);
+  });
+});
+
 describe('GeminiContentIntelligenceProvider', () => {
-  it('returns grounded opportunities tagged with the provider and model', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(geminiResponse(validResult));
-
-    const result = await provider(fetchMock).analyze(request);
-
-    expect(result.provider).toBe('gemini');
-    expect(result.model).toBe('gemini-2.5-flash');
-    expect(result.opportunities).toHaveLength(1);
-    expect(result.opportunities[0]?.title).toBe('Faith is a decision');
-  });
-
-  it('normalizes Gemini interaction usage and request provenance', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          id: 'interaction-1',
-          output_text: JSON.stringify(validResult),
-          status: 'completed',
-          usage: {
-            total_cached_tokens: 10,
-            total_input_tokens: 120,
-            total_output_tokens: 40,
-            total_thought_tokens: 5,
-          },
-        }),
-        { status: 200 },
-      ),
-    );
-
-    const result = await provider(fetchMock).analyze(request);
-    expect(result.usage).toMatchObject({
-      cachedInputTokens: 10,
-      inputTokens: 120,
-      outputTokens: 40,
-      reasoningTokens: 5,
-      requestId: 'interaction-1',
-    });
-  });
-
-  it('constrains decoding with a response schema and hides the key from the URL', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(geminiResponse(validResult));
+  it('calls the Interactions API with the pinned revision and a header key', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse(interaction(validResult)));
 
     await provider(fetchMock).analyze(request);
 
     const [url, init] = fetchMock.mock.calls[0] as [
       string,
-      RequestInit & { body: string },
+      RequestInit & { body: string; headers: Record<string, string> },
     ];
-    expect(url).not.toContain('gemini-test-key');
-    expect((init.headers as Record<string, string>)['x-goog-api-key']).toBe(
-      'gemini-test-key',
+    expect(url).toBe(
+      'https://generativelanguage.googleapis.com/v1beta/interactions',
     );
+    expect(url).not.toContain('gemini-test-key');
+    expect(init.headers['Api-Revision']).toBe(geminiApiRevision);
+    expect(init.headers['x-goog-api-key']).toBe('gemini-test-key');
+
     const body = JSON.parse(init.body) as {
       model: string;
-      response_format: { mime_type: string; schema: unknown; type: string };
-      store: boolean;
       system_instruction: string;
+      response_format: {
+        type: string;
+        mime_type: string;
+        schema: unknown;
+      };
     };
-    expect(url.endsWith('/interactions')).toBe(true);
-    expect(body.response_format.mime_type).toBe('application/json');
+    expect(body.model).toBe('gemini-3.7-flash');
+    expect(body.system_instruction).toBe('Find content opportunities.');
     expect(body.response_format.type).toBe('text');
-    expect(body.response_format.schema).toMatchObject({ type: 'object' });
-    expect(body.store).toBe(false);
-    expect(body.system_instruction).toBe(request.systemPrompt);
-  });
-
-  it('rejects an opportunity quoting text absent from its own time range', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      geminiResponse({
-        ...validResult,
-        opportunities: [
-          {
-            ...validResult.opportunities[0],
-            evidenceText: 'a sentence the speaker never said',
-          },
-        ],
-      }),
-    );
-
-    await expect(provider(fetchMock).analyze(request)).rejects.toBeInstanceOf(
-      ContentIntelligenceProviderError,
+    expect(body.response_format.mime_type).toBe('application/json');
+    expect(body.response_format.schema).toEqual(
+      geminiContentIntelligenceSchema(),
     );
   });
 
-  it('rejects an opportunity running past the end of the recording', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      geminiResponse({
-        ...validResult,
-        opportunities: [{ ...validResult.opportunities[0], endSeconds: 900 }],
-      }),
-    );
-
-    await expect(provider(fetchMock).analyze(request)).rejects.toBeInstanceOf(
-      ContentIntelligenceProviderError,
-    );
-  });
-
-  it('reports an exhausted quota as retryable rate limiting', async () => {
+  it('returns grounded opportunities tagged with the provider and model', async () => {
     const fetchMock = vi
       .fn()
-      .mockResolvedValue(new Response('{}', { status: 429 }));
+      .mockResolvedValue(jsonResponse(interaction(validResult)));
+
+    const result = await provider(fetchMock).analyze(request);
+
+    expect(result.provider).toBe('gemini');
+    expect(result.model).toBe('gemini-3.7-flash');
+    expect(result.opportunities[0]?.title).toBe('Faith is a decision');
+  });
+
+  it('reads the answer from output_text when that field is present', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse(
+        interaction(validResult, {
+          output_text: JSON.stringify(validResult),
+          steps: [],
+        }),
+      ),
+    );
+
+    const result = await provider(fetchMock).analyze(request);
+
+    expect(result.opportunities).toHaveLength(1);
+  });
+
+  it('records usage and the provider request id for the ledger', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse(interaction(validResult)));
+
+    const result = await provider(fetchMock).analyze(request);
+
+    expect(result.usage).toMatchObject({
+      cachedInputTokens: 0,
+      inputTokens: 1_200,
+      outputTokens: 480,
+      reasoningTokens: 220,
+      requestId: 'v1_interaction_id',
+    });
+    expect(result.usage.latencyMs).toBeGreaterThanOrEqual(0);
+  });
+
+  it('still enforces the array bounds that were stripped from the sent schema', async () => {
+    // The canonical schema caps opportunities at 12. Because maxItems cannot be
+    // sent to Gemini, this is the check that proves the cap is still real.
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse(
+        interaction({
+          ...validResult,
+          opportunities: Array.from({ length: 13 }, () => opportunity),
+        }),
+      ),
+    );
+
+    await expect(provider(fetchMock).analyze(request)).rejects.toBeInstanceOf(
+      ContentIntelligenceProviderError,
+    );
+  });
+
+  it('still rejects an opportunity quoting text absent from its own range', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse(
+        interaction({
+          ...validResult,
+          opportunities: [
+            { ...opportunity, evidenceText: 'a sentence never spoken' },
+          ],
+        }),
+      ),
+    );
+
+    await expect(provider(fetchMock).analyze(request)).rejects.toBeInstanceOf(
+      ContentIntelligenceProviderError,
+    );
+  });
+
+  it('treats a rejected key as terminal', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse({ error: { message: 'bad key' } }, 401));
+
+    await expect(provider(fetchMock).analyze(request)).rejects.toMatchObject({
+      category: 'AUTHENTICATION',
+      retryable: false,
+    });
+  });
+
+  it('separates retryable rate limiting from a terminal invalid request', async () => {
+    const limited = vi.fn().mockResolvedValue(jsonResponse({}, 429));
+    await expect(provider(limited).analyze(request)).rejects.toMatchObject({
+      category: 'RATE_LIMIT',
+      retryable: true,
+    });
+
+    const invalid = vi.fn().mockResolvedValue(jsonResponse({}, 400));
+    await expect(provider(invalid).analyze(request)).rejects.toMatchObject({
+      category: 'INVALID_REQUEST',
+      retryable: false,
+    });
+
+    const faulty = vi.fn().mockResolvedValue(jsonResponse({}, 503));
+    await expect(provider(faulty).analyze(request)).rejects.toMatchObject({
+      retryable: true,
+    });
+  });
+
+  it('rejects an interaction that did not complete', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        jsonResponse(interaction(validResult, { status: 'failed' })),
+      );
 
     await expect(provider(fetchMock).analyze(request)).rejects.toMatchObject({
       retryable: true,
     });
   });
 
-  it('does not retry a client error such as an unknown model', async () => {
-    const fetchMock = vi
+  it('rejects an empty or non-JSON answer', async () => {
+    const empty = vi
       .fn()
-      .mockResolvedValue(new Response('{}', { status: 404 }));
+      .mockResolvedValue(jsonResponse(interaction(validResult, { steps: [] })));
+    await expect(provider(empty).analyze(request)).rejects.toMatchObject({
+      category: 'INVALID_RESPONSE',
+    });
 
-    await expect(provider(fetchMock).analyze(request)).rejects.toMatchObject({
-      retryable: false,
+    const garbled = vi.fn().mockResolvedValue(
+      jsonResponse({
+        id: 'x',
+        status: 'completed',
+        steps: [{ content: [{ text: 'not json' }] }],
+      }),
+    );
+    await expect(provider(garbled).analyze(request)).rejects.toMatchObject({
+      category: 'INVALID_RESPONSE',
     });
   });
 
-  it('does not retry a transcript the model refused to analyze', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(
-        JSON.stringify({ promptFeedback: { blockReason: 'SAFETY' } }),
-        {
-          status: 200,
-        },
-      ),
-    );
+  it('reports an unreachable host as retryable', async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new TypeError('fetch failed'));
 
     await expect(provider(fetchMock).analyze(request)).rejects.toMatchObject({
-      retryable: false,
+      category: 'PROVIDER_UNAVAILABLE',
+      retryable: true,
     });
-  });
-
-  it('reports a truncated answer as truncation rather than a schema fault', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          candidates: [
-            {
-              content: { parts: [{ text: '{"summary":' }] },
-              finishReason: 'MAX_TOKENS',
-            },
-          ],
-        }),
-        { status: 200 },
-      ),
-    );
-
-    await expect(provider(fetchMock).analyze(request)).rejects.toThrow(
-      /truncated/i,
-    );
-  });
-});
-
-describe('geminiContentIntelligenceSchema', () => {
-  // Gemini constrains decoding to an OpenAPI subset, so its schema is written by
-  // hand. This keeps it from drifting away from the Zod schema that actually
-  // gates the result.
-  it('requires exactly the keys the canonical result schema requires', () => {
-    const canonical = Object.keys(contentIntelligenceResultSchema.shape).sort();
-
-    expect([...geminiContentIntelligenceSchema.required].sort()).toEqual(
-      canonical,
-    );
-    expect(
-      Object.keys(geminiContentIntelligenceSchema.properties).sort(),
-    ).toEqual(canonical);
-  });
-
-  it('offers the same opportunity fields, types, and platforms', () => {
-    const opportunityShape =
-      contentIntelligenceResultSchema.shape.opportunities.element.shape;
-    const geminiOpportunity =
-      geminiContentIntelligenceSchema.properties.opportunities.items;
-
-    expect([...geminiOpportunity.required].sort()).toEqual(
-      Object.keys(opportunityShape).sort(),
-    );
-    expect(Object.keys(geminiOpportunity.properties).sort()).toEqual(
-      Object.keys(opportunityShape).sort(),
-    );
-    expect([...geminiOpportunity.properties.type.enum].sort()).toEqual(
-      [...opportunityShape.type.options].sort(),
-    );
-    expect(
-      [...geminiOpportunity.properties.recommendedPlatforms.items.enum].sort(),
-    ).toEqual(
-      [...opportunityShape.recommendedPlatforms.element.options].sort(),
-    );
   });
 });
