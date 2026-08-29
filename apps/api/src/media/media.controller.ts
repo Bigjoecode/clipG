@@ -16,8 +16,10 @@ import { AuthenticationGuard } from '../auth/authentication.guard.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import {
   initiateSourceVideoUploadSchema,
+  requestContentIntelligenceSchema,
   requestTranscriptionSchema,
   type InitiateSourceVideoUploadInput,
+  type RequestContentIntelligenceInput,
   type RequestTranscriptionInput,
 } from './media.schemas.js';
 import { MediaService } from './media.service.js';
@@ -27,6 +29,7 @@ import type {
   MediaAssetSummary,
   SourceVideoUploadSession,
   TranscriptDetail,
+  ContentAnalysisDetail,
 } from '@clipgenius/types';
 
 @Controller('organizations/:organizationSlug/projects/:projectId/media')
@@ -121,6 +124,39 @@ export class MediaController {
     @Param('mediaId') mediaId: string,
   ): Promise<TranscriptDetail> {
     return this.media.getTranscript(user, organizationSlug, projectId, mediaId);
+  }
+
+  @Post(':mediaId/analyze-content')
+  public requestContentIntelligence(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('organizationSlug') organizationSlug: string,
+    @Param('projectId') projectId: string,
+    @Param('mediaId') mediaId: string,
+    @Body(new ZodValidationPipe(requestContentIntelligenceSchema))
+    input: RequestContentIntelligenceInput,
+  ): Promise<MediaAssetSummary> {
+    return this.media.requestContentIntelligence(
+      user,
+      organizationSlug,
+      projectId,
+      mediaId,
+      input,
+    );
+  }
+
+  @Get(':mediaId/content-intelligence')
+  public getContentIntelligence(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('organizationSlug') organizationSlug: string,
+    @Param('projectId') projectId: string,
+    @Param('mediaId') mediaId: string,
+  ): Promise<ContentAnalysisDetail> {
+    return this.media.getContentIntelligence(
+      user,
+      organizationSlug,
+      projectId,
+      mediaId,
+    );
   }
 
   @Post(':mediaId/fail')

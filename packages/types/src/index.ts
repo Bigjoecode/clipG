@@ -79,6 +79,8 @@ export interface MediaAssetSummary {
   readonly probe: MediaJobSummary | null;
   readonly transcript: TranscriptSummary | null;
   readonly transcription: MediaJobSummary | null;
+  readonly contentAnalysis: ContentAnalysisSummary | null;
+  readonly contentIntelligence: MediaJobSummary | null;
 }
 
 export interface ResumableUploadTarget {
@@ -96,7 +98,11 @@ export interface SourceVideoUploadSession {
   readonly upload: ResumableUploadTarget;
 }
 
-export const mediaJobTypes = ['MEDIA_PROBE', 'TRANSCRIPTION'] as const;
+export const mediaJobTypes = [
+  'MEDIA_PROBE',
+  'TRANSCRIPTION',
+  'CONTENT_INTELLIGENCE',
+] as const;
 export const mediaJobStatuses = [
   'QUEUED',
   'RUNNING',
@@ -156,6 +162,15 @@ export interface TranscriptionJobData {
   readonly projectId: string;
 }
 
+export const contentIntelligenceQueueName = 'content-intelligence';
+
+export interface ContentIntelligenceJobData {
+  readonly mediaJobId: string;
+  readonly mediaAssetId: string;
+  readonly organizationId: string;
+  readonly projectId: string;
+}
+
 export interface TranscriptSummary {
   readonly id: string;
   readonly language: string | null;
@@ -190,4 +205,75 @@ export interface TranscriptDetail extends TranscriptSummary {
   readonly text: string;
   readonly durationSeconds: number | null;
   readonly segments: readonly TranscriptSegment[];
+}
+
+export const contentOpportunityTypes = [
+  'STORY',
+  'ARGUMENT',
+  'INSIGHT',
+  'QUESTION_ANSWER',
+  'QUOTE',
+  'HOOK',
+  'CALL_TO_ACTION',
+  'EMOTIONAL_MOMENT',
+  'VISUAL_OPPORTUNITY',
+] as const;
+export type ContentOpportunityType = (typeof contentOpportunityTypes)[number];
+
+export const contentPlatforms = [
+  'YOUTUBE',
+  'INSTAGRAM',
+  'TIKTOK',
+  'FACEBOOK',
+] as const;
+export type ContentPlatform = (typeof contentPlatforms)[number];
+
+export interface ContentOpportunityScores {
+  readonly hook: number;
+  readonly clarity: number;
+  readonly emotionalImpact: number;
+  readonly standaloneValue: number;
+  readonly retentionPotential: number;
+  readonly platformFit: number;
+}
+
+export interface ContentAnalysisSummary {
+  readonly id: string;
+  readonly provider: string;
+  readonly model: string;
+  readonly promptId: string;
+  readonly promptVersion: number;
+  readonly opportunityCount: number;
+  readonly stale: boolean;
+  readonly updatedAt: string;
+}
+
+export interface ContentOpportunity {
+  readonly id: string;
+  readonly index: number;
+  readonly type: ContentOpportunityType;
+  readonly title: string;
+  readonly topic: string;
+  readonly hook: string;
+  readonly summary: string;
+  readonly rationale: string;
+  readonly evidenceText: string;
+  readonly startSeconds: number;
+  readonly endSeconds: number;
+  readonly recommendedDurationSeconds: number;
+  readonly recommendedPlatforms: readonly ContentPlatform[];
+  readonly scores: ContentOpportunityScores;
+}
+
+export interface ContentAnalysisDetail extends ContentAnalysisSummary {
+  readonly organizationId: string;
+  readonly projectId: string;
+  readonly mediaAssetId: string;
+  readonly transcriptId: string;
+  readonly originalName: string;
+  readonly summary: string;
+  readonly topics: readonly string[];
+  readonly keywords: readonly string[];
+  readonly opportunities: readonly ContentOpportunity[];
+  readonly createdAt: string;
 }

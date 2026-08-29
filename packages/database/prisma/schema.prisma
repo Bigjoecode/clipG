@@ -37,10 +37,34 @@ enum MediaStatus {
 }
 
 enum MediaJobType {
-  MEDIA_PROBE   @map("media_probe")
-  TRANSCRIPTION @map("transcription")
+  MEDIA_PROBE          @map("media_probe")
+  TRANSCRIPTION        @map("transcription")
+  CONTENT_INTELLIGENCE @map("content_intelligence")
 
   @@map("media_job_type")
+}
+
+enum ContentOpportunityType {
+  STORY              @map("story")
+  ARGUMENT           @map("argument")
+  INSIGHT            @map("insight")
+  QUESTION_ANSWER    @map("question_answer")
+  QUOTE              @map("quote")
+  HOOK               @map("hook")
+  CALL_TO_ACTION     @map("call_to_action")
+  EMOTIONAL_MOMENT   @map("emotional_moment")
+  VISUAL_OPPORTUNITY @map("visual_opportunity")
+
+  @@map("content_opportunity_type")
+}
+
+enum ContentPlatform {
+  YOUTUBE   @map("youtube")
+  INSTAGRAM @map("instagram")
+  TIKTOK    @map("tiktok")
+  FACEBOOK  @map("facebook")
+
+  @@map("content_platform")
 }
 
 enum MediaJobStatus {
@@ -75,11 +99,13 @@ model Organization {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  memberships OrganizationMembership[]
-  projects    Project[]
-  mediaAssets MediaAsset[]
-  mediaJobs   MediaJob[]
-  transcripts Transcript[]
+  memberships          OrganizationMembership[]
+  projects             Project[]
+  mediaAssets          MediaAsset[]
+  mediaJobs            MediaJob[]
+  transcripts          Transcript[]
+  contentAnalyses      ContentAnalysis[]
+  contentOpportunities ContentOpportunity[]
 
   @@map("organizations")
 }
@@ -110,11 +136,13 @@ model Project {
   createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt      DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  createdBy    User?        @relation("ProjectCreator", fields: [createdById], references: [id], onDelete: SetNull)
-  mediaAssets  MediaAsset[]
-  mediaJobs    MediaJob[]
-  transcripts  Transcript[]
+  organization         Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy            User?                @relation("ProjectCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  mediaAssets          MediaAsset[]
+  mediaJobs            MediaJob[]
+  transcripts          Transcript[]
+  contentAnalyses      ContentAnalysis[]
+  contentOpportunities ContentOpportunity[]
 
   @@index([organizationId, updatedAt])
   @@index([createdById])
@@ -152,11 +180,13 @@ model MediaAsset {
   hasAudio        Boolean?  @map("has_audio")
   probedAt        DateTime? @map("probed_at") @db.Timestamptz(3)
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  uploadedBy   User?        @relation("MediaUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
-  jobs         MediaJob[]
-  transcript   Transcript?
+  organization         Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  project              Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  uploadedBy           User?                @relation("MediaUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+  jobs                 MediaJob[]
+  transcript           Transcript?
+  contentAnalysis      ContentAnalysis?
+  contentOpportunities ContentOpportunity[]
 
   @@unique([storageProvider, storageBucket, storageKey])
   @@index([organizationId, createdAt])
@@ -211,14 +241,80 @@ model Transcript {
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  project      Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  mediaAsset   MediaAsset          @relation(fields: [mediaAssetId], references: [id], onDelete: Cascade)
-  segments     TranscriptSegment[]
+  organization    Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  project         Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  mediaAsset      MediaAsset          @relation(fields: [mediaAssetId], references: [id], onDelete: Cascade)
+  segments        TranscriptSegment[]
+  contentAnalysis ContentAnalysis?
 
   @@index([organizationId, createdAt])
   @@index([projectId, updatedAt])
   @@map("transcripts")
+}
+
+model ContentAnalysis {
+  id                  String   @id @default(uuid()) @db.Uuid
+  organizationId      String   @map("organization_id") @db.Uuid
+  projectId           String   @map("project_id") @db.Uuid
+  mediaAssetId        String   @unique @map("media_asset_id") @db.Uuid
+  transcriptId        String   @unique @map("transcript_id") @db.Uuid
+  provider            String   @db.VarChar(32)
+  model               String   @db.VarChar(100)
+  promptId            String   @map("prompt_id") @db.VarChar(100)
+  promptVersion       Int      @map("prompt_version")
+  transcriptUpdatedAt DateTime @map("transcript_updated_at") @db.Timestamptz(3)
+  summary             String   @db.Text
+  topics              String[] @default([])
+  keywords            String[] @default([])
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization  Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  project       Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  mediaAsset    MediaAsset           @relation(fields: [mediaAssetId], references: [id], onDelete: Cascade)
+  transcript    Transcript           @relation(fields: [transcriptId], references: [id], onDelete: Cascade)
+  opportunities ContentOpportunity[]
+
+  @@index([organizationId, createdAt])
+  @@index([projectId, updatedAt])
+  @@map("content_analyses")
+}
+
+model ContentOpportunity {
+  id                         String                 @id @default(uuid()) @db.Uuid
+  analysisId                 String                 @map("analysis_id") @db.Uuid
+  organizationId             String                 @map("organization_id") @db.Uuid
+  projectId                  String                 @map("project_id") @db.Uuid
+  mediaAssetId               String                 @map("media_asset_id") @db.Uuid
+  index                      Int
+  type                       ContentOpportunityType
+  title                      String                 @db.VarChar(160)
+  topic                      String                 @db.VarChar(160)
+  hook                       String                 @db.VarChar(280)
+  summary                    String                 @db.Text
+  rationale                  String                 @db.Text
+  evidenceText               String                 @map("evidence_text") @db.Text
+  startSeconds               Float                  @map("start_seconds")
+  endSeconds                 Float                  @map("end_seconds")
+  recommendedDurationSeconds Int                    @map("recommended_duration_seconds")
+  recommendedPlatforms       ContentPlatform[]      @map("recommended_platforms")
+  hookScore                  Int                    @map("hook_score")
+  clarityScore               Int                    @map("clarity_score")
+  emotionalImpactScore       Int                    @map("emotional_impact_score")
+  standaloneValueScore       Int                    @map("standalone_value_score")
+  retentionPotentialScore    Int                    @map("retention_potential_score")
+  platformFitScore           Int                    @map("platform_fit_score")
+  createdAt                  DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  analysis     ContentAnalysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  project      Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  mediaAsset   MediaAsset      @relation(fields: [mediaAssetId], references: [id], onDelete: Cascade)
+
+  @@unique([analysisId, index])
+  @@index([mediaAssetId, startSeconds])
+  @@index([projectId, type])
+  @@map("content_opportunities")
 }
 
 model TranscriptSegment {

@@ -11,10 +11,14 @@ import type {
 
 const retryAction = vi.fn<(formData: FormData) => Promise<never>>();
 const transcriptionAction = vi.fn<(formData: FormData) => Promise<never>>();
+const contentIntelligenceAction =
+  vi.fn<(formData: FormData) => Promise<never>>();
 
 function media(overrides: Partial<MediaAssetSummary> = {}): MediaAssetSummary {
   return {
     contentType: 'video/mp4',
+    contentAnalysis: null,
+    contentIntelligence: null,
     createdAt: '2026-08-27T12:00:00.000Z',
     id: 'c728fe4f-2b0d-4a28-8191-608c52e50d88',
     kind: 'SOURCE_VIDEO',
@@ -66,6 +70,7 @@ function renderAnalysis(asset: MediaAssetSummary) {
       organizationSlug="creator-studio"
       retryAction={retryAction}
       transcriptionAction={transcriptionAction}
+      contentIntelligenceAction={contentIntelligenceAction}
     />,
   );
 }
@@ -137,6 +142,34 @@ describe('MediaAnalysis', () => {
       'href',
       `/organizations/creator-studio/projects/${media().projectId}/media/${media().id}/transcript`,
     );
+  });
+
+  it('offers content intelligence after transcription succeeds', () => {
+    renderAnalysis(
+      media({
+        metadata,
+        probe: probe({ status: 'SUCCEEDED' }),
+        transcript: {
+          createdAt: '2026-08-28T12:00:00.000Z',
+          diarized: true,
+          id: '82c63e3b-97f4-4ab0-9c16-1b93a7798080',
+          language: 'en',
+          model: 'nova-2',
+          provider: 'deepgram',
+          segmentCount: 12,
+          speakerCount: 2,
+          updatedAt: '2026-08-28T12:00:00.000Z',
+        },
+        transcription: probe({
+          status: 'SUCCEEDED',
+          type: 'TRANSCRIPTION',
+        }),
+      }),
+    );
+
+    expect(
+      screen.getByRole('button', { name: 'Discover content opportunities' }),
+    ).toBeInTheDocument();
   });
 
   it('reports a silent video as having no audio', () => {

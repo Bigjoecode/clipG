@@ -7,6 +7,7 @@ import { authenticatedApiRequest } from '../../../../../lib/api';
 import { deleteProject, setProjectStatus, updateProject } from '../actions';
 import {
   requestSourceVideoTranscription,
+  requestContentIntelligence,
   retrySourceVideoAnalysis,
 } from './media-actions';
 import { SourceVideoUploader } from './source-video-uploader';
@@ -111,6 +112,7 @@ export default async function ProjectPage({
                 organizationSlug={organization.slug}
                 retryAction={retrySourceVideoAnalysis}
                 transcriptionAction={requestSourceVideoTranscription}
+                contentIntelligenceAction={requestContentIntelligence}
               />
             </div>
           ))}

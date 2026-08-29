@@ -5,8 +5,8 @@ ClipGenius is an AI Content Production Engine that turns one raw video into poli
 The repository currently includes the engineering foundation, PostgreSQL domain
 model, Supabase authentication and organizations, projects, secure source-video
 uploads, background media analysis, and timestamped transcription. Content
-intelligence, AI editing, rendering, billing, and publishing are not yet
-implemented.
+intelligence and source-timed opportunity discovery are also implemented. AI
+editing, rendering, billing, and publishing are not yet implemented.
 
 ## Prerequisites
 
@@ -58,6 +58,13 @@ A transcript is derived data, so it can be re-made: `POST` to
 `/organizations/:slug/projects/:projectId/media/:mediaId/transcribe` with
 `{"replaceExisting": true}` re-transcribes and replaces an existing transcript,
 which is how you move between providers without re-uploading the video.
+
+Content intelligence additionally requires `OPENAI_API_KEY`, even when Deepgram
+is selected for transcription. It runs asynchronously after transcription,
+uses a versioned prompt and strict Structured Outputs, and stores source-timed
+opportunities with evidence and quality scores. The configurable defaults are
+in `.env.example`; see the
+[content intelligence architecture](docs/architecture/content-intelligence.md).
 
 To use local PostgreSQL and Redis instead, start Docker Desktop and run
 `corepack pnpm services:up` before applying migrations. Supabase Auth and Storage

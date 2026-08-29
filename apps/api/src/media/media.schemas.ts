@@ -49,3 +49,14 @@ export const requestTranscriptionSchema = z
 export type RequestTranscriptionInput = z.infer<
   typeof requestTranscriptionSchema
 >;
+
+export const requestContentIntelligenceSchema = z
+  .object({
+    replaceExisting: z.boolean().default(false),
+  })
+  .strict()
+  .default({ replaceExisting: false });
+
+export type RequestContentIntelligenceInput = z.infer<
+  typeof requestContentIntelligenceSchema
+>;

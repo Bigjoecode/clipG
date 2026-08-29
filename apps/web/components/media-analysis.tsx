@@ -9,6 +9,7 @@ interface MediaAnalysisProps {
   readonly organizationSlug: string;
   readonly retryAction: (formData: FormData) => Promise<never>;
   readonly transcriptionAction: (formData: FormData) => Promise<never>;
+  readonly contentIntelligenceAction: (formData: FormData) => Promise<never>;
 }
 
 const analysisLabels = {
@@ -42,6 +43,7 @@ export function MediaAnalysis({
   organizationSlug,
   retryAction,
   transcriptionAction,
+  contentIntelligenceAction,
 }: MediaAnalysisProps) {
   const { metadata, probe, transcript, transcription } = media;
 
@@ -156,15 +158,89 @@ export function MediaAnalysis({
             />
           ) : null}
           {transcription?.status === 'SUCCEEDED' && transcript !== null ? (
-            <Link
-              className="inline-flex rounded-lg border border-emerald-900 px-3 py-1.5 text-xs text-emerald-300"
-              href={`/organizations/${encodeURIComponent(organizationSlug)}/projects/${encodeURIComponent(media.projectId)}/media/${encodeURIComponent(media.id)}/transcript`}
-            >
-              View transcript ({transcript.segmentCount} segments)
-            </Link>
+            <div className="space-y-3">
+              <Link
+                className="inline-flex rounded-lg border border-emerald-900 px-3 py-1.5 text-xs text-emerald-300"
+                href={`/organizations/${encodeURIComponent(organizationSlug)}/projects/${encodeURIComponent(media.projectId)}/media/${encodeURIComponent(media.id)}/transcript`}
+              >
+                View transcript ({transcript.segmentCount} segments)
+              </Link>
+              <ContentIntelligenceState
+                action={contentIntelligenceAction}
+                media={media}
+                organizationSlug={organizationSlug}
+              />
+            </div>
           ) : null}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function ContentIntelligenceState({
+  action,
+  media,
+  organizationSlug,
+}: {
+  readonly action: (formData: FormData) => Promise<never>;
+  readonly media: MediaAssetSummary;
+  readonly organizationSlug: string;
+}) {
+  const { contentAnalysis, contentIntelligence } = media;
+  const form = (label: string, replaceExisting = false) => (
+    <form action={action}>
+      <input name="mediaId" type="hidden" value={media.id} />
+      <input name="organizationSlug" type="hidden" value={organizationSlug} />
+      <input name="projectId" type="hidden" value={media.projectId} />
+      <input
+        name="replaceExisting"
+        type="hidden"
+        value={String(replaceExisting)}
+      />
+      <FormSubmitButton
+        className="rounded-lg border border-violet-800 px-3 py-1.5 text-xs text-violet-300"
+        label={label}
+        pendingLabel="Queueing content intelligence..."
+      />
+    </form>
+  );
+
+  if (contentIntelligence === null) {
+    return form('Discover content opportunities');
+  }
+  if (contentIntelligence.status === 'QUEUED') {
+    return <p className="text-sm text-zinc-400">Content intelligence queued</p>;
+  }
+  if (contentIntelligence.status === 'RUNNING') {
+    return <p className="text-sm text-violet-300">Finding opportunities…</p>;
+  }
+  if (contentIntelligence.status === 'FAILED') {
+    return (
+      <div className="space-y-2">
+        <p className="text-sm text-red-300">
+          Content intelligence failed
+          {contentIntelligence.failureReason === null
+            ? ''
+            : `: ${contentIntelligence.failureReason}`}
+        </p>
+        {form('Retry content intelligence')}
+      </div>
+    );
+  }
+  if (contentAnalysis === null) {
+    return form('Run content intelligence again', true);
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <Link
+        className="inline-flex rounded-lg border border-violet-800 px-3 py-1.5 text-xs text-violet-300"
+        href={`/organizations/${encodeURIComponent(organizationSlug)}/projects/${encodeURIComponent(media.projectId)}/media/${encodeURIComponent(media.id)}/content-intelligence`}
+      >
+        View {contentAnalysis.opportunityCount} content opportunities
+      </Link>
+      {contentAnalysis.stale ? form('Refresh from new transcript', true) : null}
     </div>
   );
 }

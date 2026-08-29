@@ -54,6 +54,43 @@ export const transcriptionJobEnvironmentSchema = z.object({
   TRANSCRIPTION_CONCURRENCY: z.coerce.number().int().min(1).max(8).default(1),
 });
 
+export const contentIntelligenceJobEnvironmentSchema = z.object({
+  CONTENT_INTELLIGENCE_ATTEMPTS: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(10)
+    .default(3),
+  CONTENT_INTELLIGENCE_CONCURRENCY: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(8)
+    .default(1),
+});
+
+export const contentIntelligenceEnvironmentSchema =
+  contentIntelligenceJobEnvironmentSchema.extend({
+    CONTENT_INTELLIGENCE_MAX_TRANSCRIPT_CHARACTERS: z.coerce
+      .number()
+      .int()
+      .min(1_000)
+      .max(1_000_000)
+      .default(200_000),
+    CONTENT_INTELLIGENCE_MODEL: z
+      .string()
+      .trim()
+      .min(1)
+      .default('gpt-5.6-terra'),
+    CONTENT_INTELLIGENCE_TIMEOUT_MS: z.coerce
+      .number()
+      .int()
+      .min(1_000)
+      .max(1_800_000)
+      .default(300_000),
+    OPENAI_API_KEY: z.string().trim().min(20),
+  });
+
 /**
  * Server-only configuration for the background worker. The Supabase secret key
  * bypasses Storage row-level security, so it must never reach the browser: the
@@ -159,6 +196,12 @@ export type TranscriptionJobEnvironment = z.infer<
 export type TranscriptionEnvironment = z.infer<
   typeof transcriptionEnvironmentSchema
 >;
+export type ContentIntelligenceJobEnvironment = z.infer<
+  typeof contentIntelligenceJobEnvironmentSchema
+>;
+export type ContentIntelligenceEnvironment = z.infer<
+  typeof contentIntelligenceEnvironmentSchema
+>;
 
 export function parseApiEnvironment(
   source: Record<string, string | undefined>,
@@ -218,6 +261,18 @@ export function parseTranscriptionEnvironment(
   source: Record<string, string | undefined>,
 ): TranscriptionEnvironment {
   return transcriptionEnvironmentSchema.parse(source);
+}
+
+export function parseContentIntelligenceJobEnvironment(
+  source: Record<string, string | undefined>,
+): ContentIntelligenceJobEnvironment {
+  return contentIntelligenceJobEnvironmentSchema.parse(source);
+}
+
+export function parseContentIntelligenceEnvironment(
+  source: Record<string, string | undefined>,
+): ContentIntelligenceEnvironment {
+  return contentIntelligenceEnvironmentSchema.parse(source);
 }
 
 export interface RedisConnectionOptions {

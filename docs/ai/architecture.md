@@ -114,7 +114,11 @@ The AI layer must never generate shell commands, storage credentials, or unrestr
 
 ## Current milestone boundary
 
-Task 007 transcribes an analyzed source into full text and timestamped speaker segments. It does not define content intelligence, an Edit Plan, content opportunities, or rendering behavior.
+Task 008 turns a completed transcript into durable Content Intelligence and source-timed Content Opportunities. It does not create an Edit Plan, choose final clips, edit media, or render output.
+
+The worker sends the versioned `content-intelligence` prompt, project context, transcript timing, and explicit diarization provenance through `ContentIntelligenceProvider`. The OpenAI adapter uses the Responses API with strict Structured Outputs; the worker validates source timing again before persistence. Provider, model, prompt identity, prompt version, and the exact transcript revision are recorded with every analysis.
+
+`ContentOpportunity` is now a first-class domain record. It carries type, topic, hook, summary, rationale, source evidence, start/end timing, recommended duration and platforms, plus hook, clarity, emotional-impact, standalone-value, retention-potential, and platform-fit scores. These are recommendations for later strategy milestones, not renderer instructions.
 
 ### Transcription provider selection
 

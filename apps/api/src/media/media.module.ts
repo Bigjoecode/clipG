@@ -1,4 +1,5 @@
 import {
+  parseContentIntelligenceJobEnvironment,
   parseMediaProbeEnvironment,
   parseStorageEnvironment,
   parseTranscriptionJobEnvironment,
@@ -13,10 +14,12 @@ import {
   MEDIA_PROBE_CONFIGURATION,
   MEDIA_UPLOAD_CONFIGURATION,
   TRANSCRIPTION_CONFIGURATION,
+  CONTENT_INTELLIGENCE_CONFIGURATION,
   MediaService,
   type MediaProbeConfiguration,
   type MediaUploadConfiguration,
   type TranscriptionConfiguration,
+  type ContentIntelligenceConfiguration,
 } from './media.service.js';
 
 @Module({
@@ -38,6 +41,13 @@ import {
       useFactory: (): TranscriptionConfiguration => {
         const environment = parseTranscriptionJobEnvironment(process.env);
         return { attempts: environment.TRANSCRIPTION_ATTEMPTS };
+      },
+    },
+    {
+      provide: CONTENT_INTELLIGENCE_CONFIGURATION,
+      useFactory: (): ContentIntelligenceConfiguration => {
+        const environment = parseContentIntelligenceJobEnvironment(process.env);
+        return { attempts: environment.CONTENT_INTELLIGENCE_ATTEMPTS };
       },
     },
     {

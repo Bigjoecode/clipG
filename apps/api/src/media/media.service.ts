@@ -7,11 +7,16 @@ import {
   type MediaJobType as DatabaseMediaJobType,
   type MediaKind as DatabaseMediaKind,
   type MediaStatus as DatabaseMediaStatus,
+  type ContentAnalysis as DatabaseContentAnalysis,
   type PrismaClient,
   type Transcript as DatabaseTranscript,
 } from '@clipgenius/database';
 import type { DirectUploadStorage } from '@clipgenius/storage';
-import { mediaProbeQueueName, transcriptionQueueName } from '@clipgenius/types';
+import {
+  contentIntelligenceQueueName,
+  mediaProbeQueueName,
+  transcriptionQueueName,
+} from '@clipgenius/types';
 import { InjectQueue } from '@nestjs/bullmq';
 import {
   BadRequestException,
@@ -30,10 +35,14 @@ import { DIRECT_UPLOAD_STORAGE } from '../storage/storage.module.js';
 
 import type {
   InitiateSourceVideoUploadInput,
+  RequestContentIntelligenceInput,
   RequestTranscriptionInput,
 } from './media.schemas.js';
 import type {
   AuthenticatedUser,
+  ContentAnalysisDetail,
+  ContentAnalysisSummary,
+  ContentIntelligenceJobData,
   MediaAssetSummary,
   MediaJobStatus,
   MediaJobSummary,
@@ -61,19 +70,32 @@ export interface TranscriptionConfiguration {
   readonly attempts: number;
 }
 
+export interface ContentIntelligenceConfiguration {
+  readonly attempts: number;
+}
+
 export const MEDIA_UPLOAD_CONFIGURATION = Symbol('MEDIA_UPLOAD_CONFIGURATION');
 export const MEDIA_PROBE_CONFIGURATION = Symbol('MEDIA_PROBE_CONFIGURATION');
 export const TRANSCRIPTION_CONFIGURATION = Symbol(
   'TRANSCRIPTION_CONFIGURATION',
 );
+export const CONTENT_INTELLIGENCE_CONFIGURATION = Symbol(
+  'CONTENT_INTELLIGENCE_CONFIGURATION',
+);
 
 type MediaAssetWithJobs = DatabaseMediaAsset & {
   readonly jobs?: readonly DatabaseMediaJob[];
   readonly transcript?: TranscriptWithCount | null;
+  readonly contentAnalysis?: ContentAnalysisWithCount | null;
+  readonly project?: { readonly status: 'ACTIVE' | 'ARCHIVED' };
 };
 
 type TranscriptWithCount = DatabaseTranscript & {
   readonly _count: { readonly segments: number };
+};
+
+type ContentAnalysisWithCount = DatabaseContentAnalysis & {
+  readonly _count: { readonly opportunities: number };
 };
 
 function probeJobOf(
@@ -86,6 +108,12 @@ function transcriptionJobOf(
   jobs: readonly DatabaseMediaJob[] | undefined,
 ): DatabaseMediaJob | undefined {
   return jobs?.find((job) => job.type === 'TRANSCRIPTION');
+}
+
+function contentIntelligenceJobOf(
+  jobs: readonly DatabaseMediaJob[] | undefined,
+): DatabaseMediaJob | undefined {
+  return jobs?.find((job) => job.type === 'CONTENT_INTELLIGENCE');
 }
 
 const extensionByContentType = {
@@ -135,6 +163,10 @@ export class MediaService {
     private readonly transcriptionQueue: Queue<TranscriptionJobData>,
     @Inject(TRANSCRIPTION_CONFIGURATION)
     private readonly transcriptionConfiguration: TranscriptionConfiguration,
+    @InjectQueue(contentIntelligenceQueueName)
+    private readonly contentIntelligenceQueue: Queue<ContentIntelligenceJobData>,
+    @Inject(CONTENT_INTELLIGENCE_CONFIGURATION)
+    private readonly contentIntelligenceConfiguration: ContentIntelligenceConfiguration,
   ) {}
 
   public async initiateSourceVideoUpload(
@@ -217,6 +249,9 @@ export class MediaService {
     );
     const media = await this.database.mediaAsset.findMany({
       include: {
+        contentAnalysis: {
+          include: { _count: { select: { opportunities: true } } },
+        },
         jobs: true,
         transcript: { include: { _count: { select: { segments: true } } } },
       },
@@ -420,6 +455,124 @@ export class MediaService {
     };
   }
 
+  public async requestContentIntelligence(
+    actor: AuthenticatedUser,
+    organizationSlug: string,
+    projectId: string,
+    mediaId: string,
+    input: RequestContentIntelligenceInput = { replaceExisting: false },
+  ): Promise<MediaAssetSummary> {
+    const media = await this.accessibleMedia(
+      actor.id,
+      organizationSlug,
+      projectId,
+      mediaId,
+    );
+    if (media.project?.status !== 'ACTIVE') {
+      throw new ConflictException(
+        'Restore this project before running content intelligence.',
+      );
+    }
+    const transcription = transcriptionJobOf(media.jobs);
+    const transcript = media.transcript;
+    if (transcription?.status !== 'SUCCEEDED' || transcript == null) {
+      throw new ConflictException(
+        'Complete transcription before running content intelligence.',
+      );
+    }
+
+    const existing = contentIntelligenceJobOf(media.jobs);
+    const analysisFresh =
+      media.contentAnalysis !== null &&
+      media.contentAnalysis !== undefined &&
+      media.contentAnalysis.transcriptUpdatedAt >= transcript.updatedAt;
+    if (existing !== undefined && existing.status !== 'FAILED') {
+      const inFlight =
+        existing.status === 'QUEUED' || existing.status === 'RUNNING';
+      if (inFlight || (!input.replaceExisting && analysisFresh)) {
+        return this.toSummary(media);
+      }
+    }
+
+    await this.queueContentIntelligence(media, {
+      restart: existing !== undefined,
+    });
+    const refreshed = await this.accessibleMedia(
+      actor.id,
+      organizationSlug,
+      projectId,
+      mediaId,
+    );
+    return this.toSummary(refreshed);
+  }
+
+  public async getContentIntelligence(
+    actor: AuthenticatedUser,
+    organizationSlug: string,
+    projectId: string,
+    mediaId: string,
+  ): Promise<ContentAnalysisDetail> {
+    const media = await this.accessibleMedia(
+      actor.id,
+      organizationSlug,
+      projectId,
+      mediaId,
+    );
+    const analysis = await this.database.contentAnalysis.findUnique({
+      include: { opportunities: { orderBy: { index: 'asc' } } },
+      where: { mediaAssetId: media.id },
+    });
+    if (analysis === null) {
+      throw new NotFoundException('Content intelligence not found.');
+    }
+    const stale =
+      media.transcript !== null &&
+      media.transcript !== undefined &&
+      analysis.transcriptUpdatedAt < media.transcript.updatedAt;
+    return {
+      createdAt: analysis.createdAt.toISOString(),
+      id: analysis.id,
+      keywords: analysis.keywords,
+      mediaAssetId: analysis.mediaAssetId,
+      model: analysis.model,
+      opportunityCount: analysis.opportunities.length,
+      opportunities: analysis.opportunities.map((opportunity) => ({
+        endSeconds: opportunity.endSeconds,
+        evidenceText: opportunity.evidenceText,
+        hook: opportunity.hook,
+        id: opportunity.id,
+        index: opportunity.index,
+        rationale: opportunity.rationale,
+        recommendedDurationSeconds: opportunity.recommendedDurationSeconds,
+        recommendedPlatforms: opportunity.recommendedPlatforms,
+        scores: {
+          clarity: opportunity.clarityScore,
+          emotionalImpact: opportunity.emotionalImpactScore,
+          hook: opportunity.hookScore,
+          platformFit: opportunity.platformFitScore,
+          retentionPotential: opportunity.retentionPotentialScore,
+          standaloneValue: opportunity.standaloneValueScore,
+        },
+        startSeconds: opportunity.startSeconds,
+        summary: opportunity.summary,
+        title: opportunity.title,
+        topic: opportunity.topic,
+        type: opportunity.type,
+      })),
+      organizationId: analysis.organizationId,
+      originalName: media.originalName,
+      projectId: analysis.projectId,
+      promptId: analysis.promptId,
+      promptVersion: analysis.promptVersion,
+      provider: analysis.provider,
+      stale,
+      summary: analysis.summary,
+      topics: analysis.topics,
+      transcriptId: analysis.transcriptId,
+      updatedAt: analysis.updatedAt.toISOString(),
+    };
+  }
+
   public async failSourceVideoUpload(
     actor: AuthenticatedUser,
     organizationSlug: string,
@@ -589,6 +742,73 @@ export class MediaService {
     }
   }
 
+  private async queueContentIntelligence(
+    media: MediaAssetWithJobs,
+    options: { readonly restart: boolean },
+  ): Promise<DatabaseMediaJob> {
+    const queuedAt = new Date();
+    const job = await this.database.mediaJob.upsert({
+      create: {
+        mediaAssetId: media.id,
+        organizationId: media.organizationId,
+        projectId: media.projectId,
+        queuedAt,
+        status: 'QUEUED',
+        type: 'CONTENT_INTELLIGENCE',
+      },
+      update: options.restart
+        ? {
+            attempts: 0,
+            failureReason: null,
+            finishedAt: null,
+            queuedAt,
+            startedAt: null,
+            status: 'QUEUED',
+          }
+        : {},
+      where: {
+        mediaAssetId_type: {
+          mediaAssetId: media.id,
+          type: 'CONTENT_INTELLIGENCE',
+        },
+      },
+    });
+    try {
+      await this.contentIntelligenceQueue.add(
+        'analyze-content',
+        {
+          mediaAssetId: media.id,
+          mediaJobId: job.id,
+          organizationId: media.organizationId,
+          projectId: media.projectId,
+        },
+        {
+          attempts: this.contentIntelligenceConfiguration.attempts,
+          backoff: { delay: 10_000, type: 'exponential' },
+          jobId: job.id,
+          removeOnComplete: true,
+          removeOnFail: true,
+        },
+      );
+      return job;
+    } catch (error) {
+      this.logger.error(
+        `Could not queue content intelligence for asset ${media.id}: ${
+          error instanceof Error ? error.message : 'unknown error'
+        }`,
+      );
+      return this.database.mediaJob.update({
+        data: {
+          failureReason:
+            'The processing queue was unreachable. Retry content intelligence.',
+          finishedAt: new Date(),
+          status: 'FAILED',
+        },
+        where: { id: job.id },
+      });
+    }
+  }
+
   private async accessibleProject(
     userId: string,
     organizationSlug: string,
@@ -630,7 +850,11 @@ export class MediaService {
     );
     const media = await this.database.mediaAsset.findFirst({
       include: {
+        contentAnalysis: {
+          include: { _count: { select: { opportunities: true } } },
+        },
         jobs: true,
+        project: { select: { status: true } },
         transcript: { include: { _count: { select: { segments: true } } } },
       },
       where: {
@@ -665,7 +889,16 @@ export class MediaService {
     }
     const probe = probeJobOf(jobs);
     const transcription = transcriptionJobOf(jobs);
+    const contentIntelligence = contentIntelligenceJobOf(jobs);
     return {
+      contentAnalysis:
+        media.contentAnalysis === null || media.contentAnalysis === undefined
+          ? null
+          : toContentAnalysisSummary(media.contentAnalysis, media.transcript),
+      contentIntelligence:
+        contentIntelligence === undefined
+          ? null
+          : toJobSummary(contentIntelligence),
       contentType: media.contentType,
       createdAt: media.createdAt.toISOString(),
       id: media.id,
@@ -688,6 +921,25 @@ export class MediaService {
       uploadedById: media.uploadedById,
     };
   }
+}
+
+function toContentAnalysisSummary(
+  analysis: ContentAnalysisWithCount,
+  transcript: TranscriptWithCount | null | undefined,
+): ContentAnalysisSummary {
+  return {
+    id: analysis.id,
+    model: analysis.model,
+    opportunityCount: analysis._count.opportunities,
+    promptId: analysis.promptId,
+    promptVersion: analysis.promptVersion,
+    provider: analysis.provider,
+    stale:
+      transcript !== null &&
+      transcript !== undefined &&
+      analysis.transcriptUpdatedAt < transcript.updatedAt,
+    updatedAt: analysis.updatedAt.toISOString(),
+  };
 }
 
 function toTranscriptSummary(

@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import {
   parseApiEnvironment,
   parseAuthEnvironment,
+  parseContentIntelligenceEnvironment,
+  parseContentIntelligenceJobEnvironment,
   parseDatabaseEnvironment,
   parseStorageEnvironment,
   parseTranscriptionEnvironment,
@@ -123,5 +125,22 @@ describe('environment validation', () => {
         DEEPGRAM_API_KEY: 'dg-test-transcription-key',
       }).TRANSCRIPTION_MODEL,
     ).toBeUndefined();
+  });
+
+  it('requires a server-only OpenAI key for bounded content intelligence', () => {
+    expect(() => parseContentIntelligenceEnvironment({})).toThrow();
+    expect(
+      parseContentIntelligenceEnvironment({
+        OPENAI_API_KEY: 'sk-test-content-intelligence-key',
+      }),
+    ).toMatchObject({
+      CONTENT_INTELLIGENCE_MAX_TRANSCRIPT_CHARACTERS: 200_000,
+      CONTENT_INTELLIGENCE_MODEL: 'gpt-5.6-terra',
+      CONTENT_INTELLIGENCE_TIMEOUT_MS: 300_000,
+    });
+    expect(parseContentIntelligenceJobEnvironment({})).toEqual({
+      CONTENT_INTELLIGENCE_ATTEMPTS: 3,
+      CONTENT_INTELLIGENCE_CONCURRENCY: 1,
+    });
   });
 });

@@ -15,6 +15,7 @@
     "@clipgenius/ai": "workspace:*",
     "@clipgenius/config": "workspace:*",
     "@clipgenius/database": "workspace:*",
+    "@clipgenius/prompts": "workspace:*",
     "@clipgenius/storage": "workspace:*",
     "@clipgenius/types": "workspace:*",
     "@clipgenius/video": "workspace:*",

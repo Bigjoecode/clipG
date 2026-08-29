@@ -169,6 +169,9 @@ importers:
       '@clipgenius/database':
         specifier: workspace:*
         version: link:../../packages/database
+      '@clipgenius/prompts':
+        specifier: workspace:*
+        version: link:../../packages/prompts
       '@clipgenius/storage':
         specifier: workspace:*
         version: link:../../packages/storage

@@ -1,6 +1,7 @@
 import type { PrismaClient } from '@clipgenius/database';
 import type { DirectUploadStorage } from '@clipgenius/storage';
 import type {
+  ContentIntelligenceJobData,
   MediaProbeJobData,
   TranscriptionJobData,
 } from '@clipgenius/types';
@@ -25,6 +26,7 @@ const projectId = '5ea74442-0c18-4e90-a009-300fa2f39cbd';
 const mediaId = 'c728fe4f-2b0d-4a28-8191-608c52e50d88';
 const mediaJobId = '3f0c2b6e-1a58-4a4f-9d1b-6f2c0d5e7a11';
 const transcriptionJobId = 'bd17896f-4f58-47cf-8afb-c5edbb33f90e';
+const contentIntelligenceJobId = 'ad17896f-4f58-47cf-8afb-c5edbb33f90e';
 
 function probeJob(overrides: Record<string, unknown> = {}) {
   return {
@@ -50,6 +52,7 @@ function mediaRecord(overrides: Record<string, unknown> = {}) {
     audioCodec: null,
     bitRate: null,
     contentType: 'video/mp4',
+    contentAnalysis: null,
     createdAt: new Date('2026-08-27T12:00:00.000Z'),
     durationSeconds: null,
     failureReason: null,
@@ -65,6 +68,7 @@ function mediaRecord(overrides: Record<string, unknown> = {}) {
     organizationId,
     originalName: 'sermon.mp4',
     projectId,
+    project: { status: 'ACTIVE' as const },
     sizeBytes: 1_024n,
     status: 'UPLOAD_PENDING' as const,
     storageBucket: 'clipgenius-source-media',
@@ -88,6 +92,60 @@ function transcriptionJob(overrides: Record<string, unknown> = {}) {
   };
 }
 
+function contentIntelligenceJob(overrides: Record<string, unknown> = {}) {
+  return {
+    ...probeJob({
+      id: contentIntelligenceJobId,
+      type: 'CONTENT_INTELLIGENCE',
+    }),
+    ...overrides,
+  };
+}
+
+function contentAnalysisRecord(
+  transcriptUpdatedAt: Date,
+  overrides: Record<string, unknown> = {},
+) {
+  return {
+    _count: { opportunities: 3 },
+    createdAt: transcriptUpdatedAt,
+    id: '7d17896f-4f58-47cf-8afb-c5edbb33f90e',
+    keywords: ['faith'],
+    mediaAssetId: mediaId,
+    model: 'gpt-5.6-terra',
+    organizationId,
+    projectId,
+    promptId: 'content-intelligence',
+    promptVersion: 1,
+    provider: 'openai',
+    summary: 'A sermon about faith.',
+    topics: ['Faith'],
+    transcriptId: '82c63e3b-97f4-4ab0-9c16-1b93a7798080',
+    transcriptUpdatedAt,
+    updatedAt: transcriptUpdatedAt,
+    ...overrides,
+  };
+}
+
+function transcriptRecord(updatedAt: Date) {
+  return {
+    _count: { segments: 12 },
+    createdAt: updatedAt,
+    diarized: true,
+    durationSeconds: 65,
+    id: '82c63e3b-97f4-4ab0-9c16-1b93a7798080',
+    language: 'en',
+    mediaAssetId: mediaId,
+    model: 'nova-2',
+    organizationId,
+    projectId,
+    provider: 'deepgram',
+    speakerCount: 1,
+    text: 'Forgiveness is freedom.',
+    updatedAt,
+  };
+}
+
 describe('MediaService', () => {
   const findMembership = vi.fn();
   const findProject = vi.fn();
@@ -101,7 +159,9 @@ describe('MediaService', () => {
   const updateJob = vi.fn();
   const addToQueue = vi.fn();
   const addToTranscriptionQueue = vi.fn();
+  const addToContentIntelligenceQueue = vi.fn();
   const findTranscript = vi.fn();
+  const findContentAnalysis = vi.fn();
   const database = {
     mediaAsset: {
       create: createMedia,
@@ -111,6 +171,7 @@ describe('MediaService', () => {
       update: updateMedia,
     },
     mediaJob: { update: updateJob, upsert: upsertJob },
+    contentAnalysis: { findUnique: findContentAnalysis },
     organizationMembership: { findFirst: findMembership },
     project: { findFirst: findProject },
     transcript: { findUnique: findTranscript },
@@ -131,6 +192,10 @@ describe('MediaService', () => {
     { attempts: 3 },
     { add: addToTranscriptionQueue } as unknown as Queue<TranscriptionJobData>,
     { attempts: 3 },
+    {
+      add: addToContentIntelligenceQueue,
+    } as unknown as Queue<ContentIntelligenceJobData>,
+    { attempts: 3 },
   );
 
   beforeEach(() => {
@@ -138,6 +203,7 @@ describe('MediaService', () => {
     upsertJob.mockResolvedValue(probeJob());
     addToQueue.mockResolvedValue({ id: mediaJobId });
     addToTranscriptionQueue.mockResolvedValue({ id: transcriptionJobId });
+    addToContentIntelligenceQueue.mockResolvedValue({ id: mediaJobId });
   });
 
   it('creates a tenant-scoped signed resumable upload session', async () => {
@@ -775,6 +841,151 @@ describe('MediaService', () => {
       segmentCount: 1,
       text: 'Welcome everyone.',
     });
+  });
+
+  it('queues content intelligence only after transcription succeeds', async () => {
+    const transcriptUpdatedAt = new Date('2026-08-28T12:00:00.000Z');
+    const transcribed = mediaRecord({
+      jobs: [
+        probeJob({ status: 'SUCCEEDED' }),
+        transcriptionJob({ status: 'SUCCEEDED' }),
+      ],
+      status: 'UPLOADED',
+      transcript: {
+        _count: { segments: 12 },
+        createdAt: transcriptUpdatedAt,
+        diarized: true,
+        durationSeconds: 65,
+        id: '82c63e3b-97f4-4ab0-9c16-1b93a7798080',
+        language: 'en',
+        mediaAssetId: mediaId,
+        model: 'nova-2',
+        organizationId,
+        projectId,
+        provider: 'deepgram',
+        speakerCount: 1,
+        text: 'Forgiveness is freedom.',
+        updatedAt: transcriptUpdatedAt,
+      },
+    });
+    findMembership.mockResolvedValue({ organizationId });
+    findProject.mockResolvedValue({
+      id: projectId,
+      organizationId,
+      status: 'ACTIVE',
+    });
+    findMedia.mockResolvedValueOnce(transcribed).mockResolvedValueOnce({
+      ...transcribed,
+      jobs: [...transcribed.jobs, contentIntelligenceJob()],
+    });
+    upsertJob.mockResolvedValueOnce(contentIntelligenceJob());
+
+    const result = await service.requestContentIntelligence(
+      actor,
+      'creator-studio',
+      projectId,
+      mediaId,
+    );
+
+    expect(addToContentIntelligenceQueue).toHaveBeenCalledWith(
+      'analyze-content',
+      expect.objectContaining({
+        mediaAssetId: mediaId,
+        mediaJobId: contentIntelligenceJobId,
+      }),
+      expect.objectContaining({
+        attempts: 3,
+        jobId: contentIntelligenceJobId,
+      }),
+    );
+    expect(result.contentIntelligence).toMatchObject({ status: 'QUEUED' });
+  });
+
+  it('rejects content intelligence without a completed transcript', async () => {
+    findMembership.mockResolvedValue({ organizationId });
+    findProject.mockResolvedValue({
+      id: projectId,
+      organizationId,
+      status: 'ACTIVE',
+    });
+    findMedia.mockResolvedValueOnce(mediaRecord({ status: 'UPLOADED' }));
+
+    await expect(
+      service.requestContentIntelligence(
+        actor,
+        'creator-studio',
+        projectId,
+        mediaId,
+      ),
+    ).rejects.toThrow(ConflictException);
+    expect(addToContentIntelligenceQueue).not.toHaveBeenCalled();
+  });
+
+  it('keeps fresh content intelligence idempotent', async () => {
+    const transcriptUpdatedAt = new Date('2026-08-28T12:00:00.000Z');
+    const transcribed = mediaRecord({
+      contentAnalysis: contentAnalysisRecord(transcriptUpdatedAt),
+      jobs: [
+        transcriptionJob({ status: 'SUCCEEDED' }),
+        contentIntelligenceJob({ status: 'SUCCEEDED' }),
+      ],
+      status: 'UPLOADED',
+      transcript: transcriptRecord(transcriptUpdatedAt),
+    });
+    findMembership.mockResolvedValue({ organizationId });
+    findProject.mockResolvedValue({
+      id: projectId,
+      organizationId,
+      status: 'ACTIVE',
+    });
+    findMedia.mockResolvedValueOnce(transcribed);
+
+    const result = await service.requestContentIntelligence(
+      actor,
+      'creator-studio',
+      projectId,
+      mediaId,
+    );
+
+    expect(addToContentIntelligenceQueue).not.toHaveBeenCalled();
+    expect(result.contentAnalysis).toMatchObject({ stale: false });
+  });
+
+  it('automatically regenerates intelligence after re-transcription', async () => {
+    const oldRevision = new Date('2026-08-28T12:00:00.000Z');
+    const newRevision = new Date('2026-08-28T13:00:00.000Z');
+    const stale = mediaRecord({
+      contentAnalysis: contentAnalysisRecord(oldRevision),
+      jobs: [
+        transcriptionJob({ status: 'SUCCEEDED' }),
+        contentIntelligenceJob({ status: 'SUCCEEDED' }),
+      ],
+      status: 'UPLOADED',
+      transcript: transcriptRecord(newRevision),
+    });
+    findMembership.mockResolvedValue({ organizationId });
+    findProject.mockResolvedValue({
+      id: projectId,
+      organizationId,
+      status: 'ACTIVE',
+    });
+    findMedia.mockResolvedValueOnce(stale).mockResolvedValueOnce({
+      ...stale,
+      jobs: [
+        transcriptionJob({ status: 'SUCCEEDED' }),
+        contentIntelligenceJob({ status: 'QUEUED' }),
+      ],
+    });
+    upsertJob.mockResolvedValueOnce(contentIntelligenceJob());
+
+    await service.requestContentIntelligence(
+      actor,
+      'creator-studio',
+      projectId,
+      mediaId,
+    );
+
+    expect(addToContentIntelligenceQueue).toHaveBeenCalledOnce();
   });
 
   it('marks a pending upload failed after browser retries are exhausted', async () => {

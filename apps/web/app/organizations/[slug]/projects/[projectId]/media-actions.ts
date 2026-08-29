@@ -171,3 +171,38 @@ export async function requestSourceVideoTranscription(
     `${path}?message=${encodeURIComponent('Transcription queued. Refresh in a moment to see the result.')}`,
   );
 }
+
+export async function requestContentIntelligence(
+  formData: FormData,
+): Promise<never> {
+  const result = completeSchema.safeParse({
+    mediaId: formData.get('mediaId'),
+    organizationSlug: formData.get('organizationSlug'),
+    projectId: formData.get('projectId'),
+  });
+  if (!result.success) {
+    redirect('/organizations?error=Choose+a+valid+transcript+to+analyze.');
+  }
+
+  const path = `/organizations/${encodeURIComponent(result.data.organizationSlug)}/projects/${encodeURIComponent(result.data.projectId)}`;
+  try {
+    await authenticatedApiRequest<MediaAssetSummary>(
+      `${path}/media/${encodeURIComponent(result.data.mediaId)}/analyze-content`,
+      {
+        body: JSON.stringify({
+          replaceExisting: formData.get('replaceExisting') === 'true',
+        }),
+        method: 'POST',
+      },
+    );
+  } catch (error) {
+    const message = apiErrorMessage(error);
+    revalidatePath(path);
+    redirect(`${path}?error=${encodeURIComponent(message)}`);
+  }
+
+  revalidatePath(path);
+  redirect(
+    `${path}?message=${encodeURIComponent('Content intelligence queued. Refresh in a moment to see the result.')}`,
+  );
+}

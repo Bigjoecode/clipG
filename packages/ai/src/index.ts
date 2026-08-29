@@ -10,6 +10,75 @@ export interface AIProvider {
   ): Promise<TOutput>;
 }
 
+export interface ContentIntelligenceSegment {
+  readonly startSeconds: number;
+  readonly endSeconds: number;
+  readonly speaker: string | null;
+  readonly text: string;
+}
+
+export interface ContentIntelligenceRequest {
+  readonly systemPrompt: string;
+  readonly safetyIdentifier: string;
+  readonly durationSeconds: number;
+  readonly language: string | null;
+  readonly diarized: boolean;
+  readonly speakerCount: number | null;
+  readonly project: {
+    readonly name: string;
+    readonly description: string | null;
+  };
+  readonly segments: readonly ContentIntelligenceSegment[];
+}
+
+export interface ContentIntelligenceOpportunity {
+  readonly type:
+    | 'STORY'
+    | 'ARGUMENT'
+    | 'INSIGHT'
+    | 'QUESTION_ANSWER'
+    | 'QUOTE'
+    | 'HOOK'
+    | 'CALL_TO_ACTION'
+    | 'EMOTIONAL_MOMENT'
+    | 'VISUAL_OPPORTUNITY';
+  readonly title: string;
+  readonly topic: string;
+  readonly hook: string;
+  readonly summary: string;
+  readonly rationale: string;
+  readonly evidenceText: string;
+  readonly startSeconds: number;
+  readonly endSeconds: number;
+  readonly recommendedDurationSeconds: number;
+  readonly recommendedPlatforms: readonly (
+    'YOUTUBE' | 'INSTAGRAM' | 'TIKTOK' | 'FACEBOOK'
+  )[];
+  readonly scores: {
+    readonly hook: number;
+    readonly clarity: number;
+    readonly emotionalImpact: number;
+    readonly standaloneValue: number;
+    readonly retentionPotential: number;
+    readonly platformFit: number;
+  };
+}
+
+export interface ContentIntelligenceResult {
+  readonly provider: string;
+  readonly model: string;
+  readonly summary: string;
+  readonly topics: readonly string[];
+  readonly keywords: readonly string[];
+  readonly opportunities: readonly ContentIntelligenceOpportunity[];
+}
+
+export interface ContentIntelligenceProvider {
+  analyze(
+    request: ContentIntelligenceRequest,
+  ): Promise<ContentIntelligenceResult>;
+}
+
 export interface TranscriptionRequest {
   /** Absolute path to a worker-local audio file. */
   readonly mediaUri: string;
@@ -55,3 +124,9 @@ export type { OpenAITranscriptionProviderOptions } from './openai-transcription.
 export { DeepgramTranscriptionProvider } from './deepgram-transcription.js';
 export type { DeepgramTranscriptionProviderOptions } from './deepgram-transcription.js';
 export { distinctSpeakerCount } from './speakers.js';
+export {
+  ContentIntelligenceProviderError,
+  OpenAIContentIntelligenceProvider,
+  contentIntelligenceResultSchema,
+} from './openai-content-intelligence.js';
+export type { OpenAIContentIntelligenceProviderOptions } from './openai-content-intelligence.js';
