@@ -72,6 +72,12 @@ const defaultOpenAIModel = 'gpt-4o-transcribe-diarize';
           maxAudioBytes: transcription.TRANSCRIPTION_MAX_AUDIO_BYTES,
           maxSourceBytes: media.MEDIA_PROBE_MAX_BYTES,
           signedUrlLifetimeSeconds,
+          provider: transcription.TRANSCRIPTION_PROVIDER,
+          model:
+            transcription.TRANSCRIPTION_MODEL ??
+            (transcription.TRANSCRIPTION_PROVIDER === 'deepgram'
+              ? defaultDeepgramModel
+              : defaultOpenAIModel),
         };
       },
     },

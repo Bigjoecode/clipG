@@ -3,6 +3,8 @@ import {
   parseContentIntelligenceJobEnvironment,
 } from '@clipgenius/config';
 import {
+  AnthropicContentIntelligenceProvider,
+  GeminiContentIntelligenceProvider,
   OpenAIContentIntelligenceProvider,
   type ContentIntelligenceProvider,
 } from '@clipgenius/ai';
@@ -18,6 +20,15 @@ import {
   type ContentIntelligenceSettings,
 } from './content-intelligence.processor.js';
 
+/**
+ * Per-provider model defaults. Both support schema-constrained decoding, which
+ * this analysis depends on: every malformed response costs a full retry over a
+ * long transcript.
+ */
+const defaultAnthropicModel = 'claude-opus-5';
+const defaultGeminiModel = 'gemini-3.6-flash';
+const defaultOpenAIModel = 'gpt-5.6-terra';
+
 @Module({
   imports: [BullModule.registerQueue({ name: contentIntelligenceQueueName })],
   providers: [
@@ -25,9 +36,26 @@ import {
       provide: CONTENT_INTELLIGENCE_PROVIDER,
       useFactory: (): ContentIntelligenceProvider => {
         const environment = parseContentIntelligenceEnvironment(process.env);
+        if (environment.CONTENT_INTELLIGENCE_PROVIDER === 'anthropic') {
+          return new AnthropicContentIntelligenceProvider({
+            // The environment schema guarantees the selected provider's key.
+            apiKey: environment.ANTHROPIC_API_KEY ?? '',
+            model:
+              environment.CONTENT_INTELLIGENCE_MODEL ?? defaultAnthropicModel,
+            timeoutMs: environment.CONTENT_INTELLIGENCE_TIMEOUT_MS,
+          });
+        }
+        if (environment.CONTENT_INTELLIGENCE_PROVIDER === 'gemini') {
+          return new GeminiContentIntelligenceProvider({
+            // The environment schema guarantees the selected provider's key.
+            apiKey: environment.GEMINI_API_KEY ?? '',
+            model: environment.CONTENT_INTELLIGENCE_MODEL ?? defaultGeminiModel,
+            timeoutMs: environment.CONTENT_INTELLIGENCE_TIMEOUT_MS,
+          });
+        }
         return new OpenAIContentIntelligenceProvider({
-          apiKey: environment.OPENAI_API_KEY,
-          model: environment.CONTENT_INTELLIGENCE_MODEL,
+          apiKey: environment.OPENAI_API_KEY ?? '',
+          model: environment.CONTENT_INTELLIGENCE_MODEL ?? defaultOpenAIModel,
           timeoutMs: environment.CONTENT_INTELLIGENCE_TIMEOUT_MS,
         });
       },
@@ -44,6 +72,14 @@ import {
           promptId: contentIntelligencePrompt.id,
           promptVersion: contentIntelligencePrompt.version,
           systemPrompt: contentIntelligencePrompt.template,
+          provider: environment.CONTENT_INTELLIGENCE_PROVIDER,
+          model:
+            environment.CONTENT_INTELLIGENCE_MODEL ??
+            (environment.CONTENT_INTELLIGENCE_PROVIDER === 'anthropic'
+              ? defaultAnthropicModel
+              : environment.CONTENT_INTELLIGENCE_PROVIDER === 'gemini'
+                ? defaultGeminiModel
+                : defaultOpenAIModel),
         };
       },
     },

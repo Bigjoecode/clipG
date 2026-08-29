@@ -25,8 +25,8 @@ the worker re-reads all tenant and transcript data before processing.
 
 ## Provider and prompt boundary
 
-`@clipgenius/ai` owns `ContentIntelligenceProvider`. The initial adapter uses the
-OpenAI Responses API with strict Structured Outputs. Its output still passes a
+`@clipgenius/ai` owns `ContentIntelligenceProvider`. Each adapter uses the
+selected provider's schema-constrained API. Its output still passes a
 local Zod schema and deterministic timing checks before persistence. The API key
 is worker-only and must never use a `NEXT_PUBLIC_` prefix.
 

@@ -70,26 +70,48 @@ export const contentIntelligenceJobEnvironmentSchema = z.object({
 });
 
 export const contentIntelligenceEnvironmentSchema =
-  contentIntelligenceJobEnvironmentSchema.extend({
-    CONTENT_INTELLIGENCE_MAX_TRANSCRIPT_CHARACTERS: z.coerce
-      .number()
-      .int()
-      .min(1_000)
-      .max(1_000_000)
-      .default(200_000),
-    CONTENT_INTELLIGENCE_MODEL: z
-      .string()
-      .trim()
-      .min(1)
-      .default('gpt-5.6-terra'),
-    CONTENT_INTELLIGENCE_TIMEOUT_MS: z.coerce
-      .number()
-      .int()
-      .min(1_000)
-      .max(1_800_000)
-      .default(300_000),
-    OPENAI_API_KEY: z.string().trim().min(20),
-  });
+  contentIntelligenceJobEnvironmentSchema
+    .extend({
+      CONTENT_INTELLIGENCE_MAX_TRANSCRIPT_CHARACTERS: z.coerce
+        .number()
+        .int()
+        .min(1_000)
+        .max(1_000_000)
+        .default(200_000),
+      // Left without a default so each provider can apply its own; a shared
+      // default would silently send one provider's model name to another.
+      CONTENT_INTELLIGENCE_MODEL: z.string().trim().min(1).optional(),
+      ANTHROPIC_API_KEY: z.string().trim().min(20).optional(),
+      CONTENT_INTELLIGENCE_PROVIDER: z
+        .enum(['openai', 'anthropic', 'gemini'])
+        .default('gemini'),
+      CONTENT_INTELLIGENCE_TIMEOUT_MS: z.coerce
+        .number()
+        .int()
+        .min(1_000)
+        .max(1_800_000)
+        .default(300_000),
+      GEMINI_API_KEY: z.string().trim().min(20).optional(),
+      OPENAI_API_KEY: z.string().trim().min(20).optional(),
+    })
+    // Both keys are individually optional so a deployment carries only the
+    // credential it uses, but the selected provider must have its own.
+    .superRefine((environment, context) => {
+      const required = (
+        {
+          anthropic: 'ANTHROPIC_API_KEY',
+          gemini: 'GEMINI_API_KEY',
+          openai: 'OPENAI_API_KEY',
+        } as const
+      )[environment.CONTENT_INTELLIGENCE_PROVIDER];
+      if (environment[required] === undefined) {
+        context.addIssue({
+          code: 'custom',
+          message: `${required} is required when CONTENT_INTELLIGENCE_PROVIDER is "${environment.CONTENT_INTELLIGENCE_PROVIDER}".`,
+          path: [required],
+        });
+      }
+    });
 
 /**
  * Server-only configuration for the background worker. The Supabase secret key

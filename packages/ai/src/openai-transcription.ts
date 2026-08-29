@@ -4,8 +4,11 @@ import OpenAI from 'openai';
 import { z } from 'zod';
 
 import { distinctSpeakerCount } from './speakers.js';
+import { emptyAiUsage } from './usage.js';
 
 import type {
+  AiErrorCategory,
+  AiUsage,
   TranscriptionProvider,
   TranscriptionRequest,
   TranscriptionResult,
@@ -43,6 +46,8 @@ export class TranscriptionProviderError extends Error {
   public constructor(
     message: string,
     public readonly retryable: boolean,
+    public readonly category: AiErrorCategory = 'UNKNOWN',
+    public readonly usage?: AiUsage,
   ) {
     super(message);
     this.name = 'TranscriptionProviderError';
@@ -86,6 +91,7 @@ export class OpenAITranscriptionProvider implements TranscriptionProvider {
   public async transcribe(
     request: TranscriptionRequest,
   ): Promise<TranscriptionResult> {
+    const startedAt = Date.now();
     const file = createReadStream(request.mediaUri);
     let raw: unknown;
     try {
@@ -112,6 +118,8 @@ export class OpenAITranscriptionProvider implements TranscriptionProvider {
       throw new TranscriptionProviderError(
         'OpenAI returned an invalid diarized transcription response.',
         true,
+        'INVALID_RESPONSE',
+        emptyAiUsage(Date.now() - startedAt),
       );
     }
     const segments = parsed.data.segments.map((segment) => ({
@@ -129,6 +137,10 @@ export class OpenAITranscriptionProvider implements TranscriptionProvider {
       segments,
       speakerCount: distinctSpeakerCount(segments),
       text: parsed.data.text.trim(),
+      usage: {
+        ...emptyAiUsage(Date.now() - startedAt),
+        audioSeconds: parsed.data.duration,
+      },
     };
   }
 }
@@ -156,6 +168,15 @@ function providerError(error: unknown): TranscriptionProviderError {
         ? 'OpenAI rejected the request because the API project has no remaining quota.'
         : `OpenAI transcription failed with status ${error.status ?? 'unknown'}.`,
       retryable,
+      outOfQuota
+        ? 'QUOTA'
+        : error.status === 401 || error.status === 403
+          ? 'AUTHENTICATION'
+          : error.status === 429
+            ? 'RATE_LIMIT'
+            : error.status !== undefined && error.status >= 500
+              ? 'PROVIDER_UNAVAILABLE'
+              : 'INVALID_REQUEST',
     );
   }
   return new TranscriptionProviderError(
@@ -163,5 +184,8 @@ function providerError(error: unknown): TranscriptionProviderError {
       error instanceof Error ? error.message : 'unknown error'
     }`,
     true,
+    error instanceof Error && error.name === 'AbortError'
+      ? 'TIMEOUT'
+      : 'UNKNOWN',
   );
 }

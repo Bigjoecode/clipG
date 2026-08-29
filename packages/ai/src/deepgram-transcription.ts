@@ -6,6 +6,7 @@ import { z } from 'zod';
 
 import { TranscriptionProviderError } from './openai-transcription.js';
 import { distinctSpeakerCount } from './speakers.js';
+import { emptyAiUsage } from './usage.js';
 
 import type {
   TranscriptionProvider,
@@ -30,6 +31,7 @@ const deepgramResponseSchema = z.object({
     .object({
       duration: z.number().nonnegative().optional(),
       models: z.array(z.string()).optional(),
+      request_id: z.string().optional(),
     })
     .optional(),
   results: z.object({
@@ -80,6 +82,7 @@ export class DeepgramTranscriptionProvider implements TranscriptionProvider {
   public async transcribe(
     request: TranscriptionRequest,
   ): Promise<TranscriptionResult> {
+    const startedAt = Date.now();
     const url = new URL(this.options.baseUrl ?? defaultBaseUrl);
     url.searchParams.set('model', this.options.model);
     // Deepgram deprecated `diarize=true` for prerecorded audio. Selecting the
@@ -126,6 +129,10 @@ export class DeepgramTranscriptionProvider implements TranscriptionProvider {
           error instanceof Error ? error.message : 'unknown error'
         }`,
         true,
+        error instanceof Error && error.name === 'AbortError'
+          ? 'TIMEOUT'
+          : 'PROVIDER_UNAVAILABLE',
+        emptyAiUsage(Date.now() - startedAt),
       );
     } finally {
       clearTimeout(timeout);
@@ -137,6 +144,19 @@ export class DeepgramTranscriptionProvider implements TranscriptionProvider {
         // 402 means the account is out of credit; retrying cannot fix that.
         response.status !== 402 &&
           (response.status === 429 || response.status >= 500),
+        response.status === 402
+          ? 'QUOTA'
+          : response.status === 401 || response.status === 403
+            ? 'AUTHENTICATION'
+            : response.status === 429
+              ? 'RATE_LIMIT'
+              : response.status >= 500
+                ? 'PROVIDER_UNAVAILABLE'
+                : 'INVALID_REQUEST',
+        emptyAiUsage(
+          Date.now() - startedAt,
+          response.headers.get('x-request-id'),
+        ),
       );
     }
 
@@ -147,6 +167,8 @@ export class DeepgramTranscriptionProvider implements TranscriptionProvider {
       throw new TranscriptionProviderError(
         'Deepgram returned a response that was not JSON.',
         true,
+        'INVALID_RESPONSE',
+        emptyAiUsage(Date.now() - startedAt),
       );
     }
 
@@ -155,6 +177,8 @@ export class DeepgramTranscriptionProvider implements TranscriptionProvider {
       throw new TranscriptionProviderError(
         'Deepgram returned an unexpected transcription response shape.',
         true,
+        'INVALID_RESPONSE',
+        emptyAiUsage(Date.now() - startedAt),
       );
     }
 
@@ -164,6 +188,8 @@ export class DeepgramTranscriptionProvider implements TranscriptionProvider {
       throw new TranscriptionProviderError(
         'Deepgram returned no timestamped utterances.',
         false,
+        'INVALID_RESPONSE',
+        emptyAiUsage(Date.now() - startedAt),
       );
     }
 
@@ -187,6 +213,14 @@ export class DeepgramTranscriptionProvider implements TranscriptionProvider {
       text:
         channel?.alternatives[0]?.transcript.trim() ??
         segments.map((segment) => segment.text).join(' '),
+      usage: {
+        ...emptyAiUsage(
+          Date.now() - startedAt,
+          parsed.data.metadata?.request_id ??
+            response.headers.get('x-request-id'),
+        ),
+        audioSeconds: parsed.data.metadata?.duration ?? null,
+      },
     };
   }
 }

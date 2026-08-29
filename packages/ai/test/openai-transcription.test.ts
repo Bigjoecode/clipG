@@ -33,9 +33,8 @@ describe('OpenAITranscriptionProvider', () => {
       timeoutMs: 600_000,
     });
 
-    await expect(
-      provider.transcribe({ mediaUri: fixturePath }),
-    ).resolves.toEqual({
+    const result = await provider.transcribe({ mediaUri: fixturePath });
+    expect(result).toMatchObject({
       diarized: true,
       durationSeconds: 65.2,
       language: null,
@@ -51,7 +50,17 @@ describe('OpenAITranscriptionProvider', () => {
       ],
       speakerCount: 1,
       text: 'Welcome everyone.',
+      usage: {
+        audioSeconds: 65.2,
+        cacheWriteTokens: null,
+        cachedInputTokens: null,
+        inputTokens: null,
+        outputTokens: null,
+        reasoningTokens: null,
+        requestId: null,
+      },
     });
+    expect(result.usage.latencyMs).toBeGreaterThanOrEqual(0);
     expect(request.mock.calls[0]?.[0]).toMatchObject({
       chunking_strategy: 'auto',
       model: 'gpt-4o-transcribe-diarize',

@@ -33,6 +33,8 @@ export interface TranscriptionSettings {
   readonly maxAudioBytes: number;
   readonly maxSourceBytes: number;
   readonly signedUrlLifetimeSeconds: number;
+  readonly provider: string;
+  readonly model: string;
 }
 
 const extensionByContentType: Record<string, string> = {
@@ -89,6 +91,7 @@ export class TranscriptionProcessor extends WorkerHost {
     }
 
     const attempts = record.attempts + 1;
+    let providerAttemptStartedAt: number | null = null;
     try {
       if (
         record.type !== 'TRANSCRIPTION' ||
@@ -132,10 +135,26 @@ export class TranscriptionProcessor extends WorkerHost {
         where: { id: record.id },
       });
 
+      providerAttemptStartedAt = Date.now();
       const transcript = await this.transcribeMedia(
         media.storageKey,
         media.contentType,
       );
+      const providerLatencyMs = Date.now() - providerAttemptStartedAt;
+      providerAttemptStartedAt = null;
+      await recordAiRun(this.database, {
+        attempt: attempts,
+        latencyMs: providerLatencyMs,
+        mediaAssetId: media.id,
+        mediaJobId: record.id,
+        model: transcript.model,
+        operation: 'TRANSCRIPTION',
+        organizationId: media.organizationId,
+        projectId: media.projectId,
+        provider: transcript.provider,
+        status: 'SUCCEEDED',
+        usage: transcript.usage,
+      });
       const existing = await this.database.transcript.findUnique({
         select: { id: true },
         where: { mediaAssetId: media.id },
@@ -197,6 +216,28 @@ export class TranscriptionProcessor extends WorkerHost {
         }.`,
       );
     } catch (error) {
+      if (providerAttemptStartedAt !== null) {
+        await recordAiRun(this.database, {
+          attempt: attempts,
+          errorCategory:
+            error instanceof TranscriptionProviderError
+              ? error.category
+              : 'UNKNOWN',
+          latencyMs: Date.now() - providerAttemptStartedAt,
+          mediaAssetId: record.mediaAssetId,
+          mediaJobId: record.id,
+          model: this.settings.model,
+          operation: 'TRANSCRIPTION',
+          organizationId: record.organizationId,
+          projectId: record.projectId,
+          provider: this.settings.provider,
+          status: 'FAILED',
+          ...(error instanceof TranscriptionProviderError &&
+          error.usage !== undefined
+            ? { usage: error.usage }
+            : {}),
+        });
+      }
       const permanent =
         error instanceof PermanentTranscriptionError ||
         error instanceof AudioExtractionError ||
@@ -248,3 +289,5 @@ export class TranscriptionProcessor extends WorkerHost {
     }
   }
 }
+
+import { recordAiRun } from '../ai-run-ledger.js';

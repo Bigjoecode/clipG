@@ -90,7 +90,7 @@ Organizes approved outputs into a coherent content campaign. This is outside the
 
 ## Provider boundary
 
-`@clipgenius/ai` defines capability contracts rather than vendor-specific application services. Concrete provider adapters are added only when a milestone needs them. Task 007 introduces the first one: an OpenAI diarized-transcription adapter behind the `TranscriptionProvider` contract. It validates timestamped speaker segments before persistence and leaves retry ownership with the BullMQ worker. Content-intelligence, vision, image-generation, and editing providers remain deferred.
+`@clipgenius/ai` defines capability contracts rather than vendor-specific application services. Task 007 provides Deepgram (default) and optional OpenAI diarized transcription behind `TranscriptionProvider`. Task 008 provides Gemini (default), OpenAI, and optional Anthropic content intelligence behind `ContentIntelligenceProvider`. Vision, image-generation, and editing providers remain deferred.
 
 Provider calls must eventually include:
 
@@ -116,9 +116,27 @@ The AI layer must never generate shell commands, storage credentials, or unrestr
 
 Task 008 turns a completed transcript into durable Content Intelligence and source-timed Content Opportunities. It does not create an Edit Plan, choose final clips, edit media, or render output.
 
-The worker sends the versioned `content-intelligence` prompt, project context, transcript timing, and explicit diarization provenance through `ContentIntelligenceProvider`. The OpenAI adapter uses the Responses API with strict Structured Outputs; the worker validates source timing again before persistence. Provider, model, prompt identity, prompt version, and the exact transcript revision are recorded with every analysis.
+The worker sends the versioned `content-intelligence` prompt, project context, transcript timing, and explicit diarization provenance through `ContentIntelligenceProvider`. Every adapter uses schema-constrained output; the worker validates source timing again before persistence. Provider, model, prompt identity, prompt version, and the exact transcript revision are recorded with every analysis.
 
 `ContentOpportunity` is now a first-class domain record. It carries type, topic, hook, summary, rationale, source evidence, start/end timing, recommended duration and platforms, plus hook, clarity, emotional-impact, standalone-value, retention-potential, and platform-fit scores. These are recommendations for later strategy milestones, not renderer instructions.
+
+### Content intelligence provider selection
+
+Content intelligence sits behind `ContentIntelligenceProvider`, and `CONTENT_INTELLIGENCE_PROVIDER` selects the implementation: Google Gemini (the default), OpenAI Structured Outputs, or optional Anthropic. Each supplies its own model default so a shared default cannot send one provider's model name to another.
+
+OpenAI and Anthropic accept the canonical Zod schema directly. Gemini uses the current stateless Interactions API with `response_format` and an OpenAPI-subset schema guarded by a parity test. This replaces the legacy `generateContent` path that rejected the complete opportunity schema.
+
+Both constrain decoding to a schema rather than merely requesting JSON. That is a selection constraint: the opportunity schema is large, and every malformed response costs a full retry over an entire transcript, so a provider that can only be asked politely for JSON is materially more expensive to run.
+
+Schema validation and transcript grounding are shared by every provider in `parseContentIntelligence`, not implemented per adapter. Model output is untrusted, and a cheaper or weaker model is more likely to invent a quote or a timestamp rather than less, so an adapter must not be able to skip the checks. Every returned opportunity must fit inside the recording, describe a positive time window, and quote evidence that actually occurs in the segments its window spans.
+
+**Data handling is part of this choice.** ClipGenius sends transcript text and project context to the selected content-intelligence provider, not source-video bytes. Deployment owners must review the current terms for their selected provider and service tier.
+
+### AI usage ledger and pricing
+
+One immutable `AiRun` is appended for every actual external transcription or content-intelligence attempt, including each BullMQ retry. Pre-provider validation failures create no run because no vendor request occurred. A fresh/idempotently cached analysis also creates no run. Each row records tenant/project/job context, operation, provider/model, normalized token and audio usage, latency, provider request id, retry attempt, outcome, and normalized error category. Secrets, full provider responses, prompts, and raw transcripts are never written to this ledger.
+
+Pricing is a versioned code catalog expressed in integer micro-dollars. The selected catalog version, effective date, and all component rates are copied onto the run with the estimate, so later catalog edits cannot rewrite historical math. `actualCostMicros` is separate and remains null until a provider invoice or billing feed supplies it. An unknown or unapproved provider/model price produces a null estimate rather than a fabricated value. Indexes support bounded aggregation by organization, project, operation, provider, model, and date; `aggregateAiUsage` provides the deterministic rollup used by a future usage API. This is accounting infrastructure, not subscription enforcement.
 
 ### Transcription provider selection
 

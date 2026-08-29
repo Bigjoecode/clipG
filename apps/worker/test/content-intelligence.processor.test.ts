@@ -70,8 +70,10 @@ describe('ContentIntelligenceProcessor', () => {
     Promise.all(operations),
   );
   const analyze = vi.fn();
+  const createAiRun = vi.fn();
   const database = {
     $transaction: transaction,
+    aiRun: { create: createAiRun },
     contentAnalysis: { findUnique: findAnalysis, upsert: upsertAnalysis },
     contentOpportunity: {
       createMany: createOpportunities,
@@ -84,9 +86,11 @@ describe('ContentIntelligenceProcessor', () => {
   function processor(maxTranscriptCharacters = 200_000) {
     return new ContentIntelligenceProcessor(database, provider, {
       attempts: 3,
+      model: 'gemini-3.6-flash',
       maxTranscriptCharacters,
       promptId: 'content-intelligence',
       promptVersion: 1,
+      provider: 'gemini',
       systemPrompt: 'Analyze only supplied evidence.',
     });
   }
@@ -99,6 +103,7 @@ describe('ContentIntelligenceProcessor', () => {
     upsertAnalysis.mockResolvedValue({});
     deleteOpportunities.mockResolvedValue({ count: 0 });
     createOpportunities.mockResolvedValue({ count: 1 });
+    createAiRun.mockResolvedValue({});
     analyze.mockResolvedValue({
       keywords: ['forgiveness'],
       model: 'gpt-5.6-terra',
@@ -157,6 +162,19 @@ describe('ContentIntelligenceProcessor', () => {
       'data.status',
       'SUCCEEDED',
     );
+    expect(createAiRun.mock.calls[0]?.[0]).toHaveProperty('data.attempt', 1);
+    expect(createAiRun.mock.calls[0]?.[0]).toHaveProperty(
+      'data.mediaJobId',
+      mediaJobId,
+    );
+    expect(createAiRun.mock.calls[0]?.[0]).toHaveProperty(
+      'data.operation',
+      'CONTENT_INTELLIGENCE',
+    );
+    expect(createAiRun.mock.calls[0]?.[0]).toHaveProperty(
+      'data.status',
+      'SUCCEEDED',
+    );
   });
 
   it('fails permanently when no transcript exists', async () => {
@@ -166,6 +184,7 @@ describe('ContentIntelligenceProcessor', () => {
       UnrecoverableError,
     );
     expect(analyze).not.toHaveBeenCalled();
+    expect(createAiRun).not.toHaveBeenCalled();
     expect(updateJob.mock.calls.at(-1)?.[0]).toHaveProperty(
       'data.status',
       'FAILED',

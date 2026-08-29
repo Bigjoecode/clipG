@@ -29,6 +29,8 @@ export interface ContentIntelligenceSettings {
   readonly promptId: string;
   readonly promptVersion: number;
   readonly systemPrompt: string;
+  readonly provider: string;
+  readonly model: string;
 }
 
 class PermanentContentIntelligenceError extends Error {
@@ -90,6 +92,7 @@ export class ContentIntelligenceProcessor extends WorkerHost {
     }
 
     const attempts = record.attempts + 1;
+    let providerAttemptStartedAt: number | null = null;
     try {
       if (
         record.type !== 'CONTENT_INTELLIGENCE' ||
@@ -136,6 +139,7 @@ export class ContentIntelligenceProcessor extends WorkerHost {
         where: { id: record.id },
       });
 
+      providerAttemptStartedAt = Date.now();
       const result = await this.provider.analyze({
         diarized: transcript.diarized,
         durationSeconds,
@@ -155,6 +159,21 @@ export class ContentIntelligenceProcessor extends WorkerHost {
         })),
         speakerCount: transcript.speakerCount,
         systemPrompt: this.settings.systemPrompt,
+      });
+      const providerLatencyMs = Date.now() - providerAttemptStartedAt;
+      providerAttemptStartedAt = null;
+      await recordAiRun(this.database, {
+        attempt: attempts,
+        latencyMs: providerLatencyMs,
+        mediaAssetId: mediaAsset.id,
+        mediaJobId: record.id,
+        model: result.model,
+        operation: 'CONTENT_INTELLIGENCE',
+        organizationId: mediaAsset.organizationId,
+        projectId: mediaAsset.projectId,
+        provider: result.provider,
+        status: 'SUCCEEDED',
+        usage: result.usage,
       });
 
       const existing = await this.database.contentAnalysis.findUnique({
@@ -232,6 +251,28 @@ export class ContentIntelligenceProcessor extends WorkerHost {
         `Analyzed content for media ${mediaAsset.id} with ${result.provider}: ${result.opportunities.length} opportunity(s).`,
       );
     } catch (error) {
+      if (providerAttemptStartedAt !== null) {
+        await recordAiRun(this.database, {
+          attempt: attempts,
+          errorCategory:
+            error instanceof ContentIntelligenceProviderError
+              ? error.category
+              : 'UNKNOWN',
+          latencyMs: Date.now() - providerAttemptStartedAt,
+          mediaAssetId: record.mediaAssetId,
+          mediaJobId: record.id,
+          model: this.settings.model,
+          operation: 'CONTENT_INTELLIGENCE',
+          organizationId: record.organizationId,
+          projectId: record.projectId,
+          provider: this.settings.provider,
+          status: 'FAILED',
+          ...(error instanceof ContentIntelligenceProviderError &&
+          error.usage !== undefined
+            ? { usage: error.usage }
+            : {}),
+        });
+      }
       const permanent =
         error instanceof PermanentContentIntelligenceError ||
         (error instanceof ContentIntelligenceProviderError && !error.retryable);
@@ -256,3 +297,5 @@ export class ContentIntelligenceProcessor extends WorkerHost {
     }
   }
 }
+
+import { recordAiRun } from '../ai-run-ledger.js';

@@ -76,6 +76,34 @@ enum MediaJobStatus {
   @@map("media_job_status")
 }
 
+enum AiOperation {
+  TRANSCRIPTION        @map("transcription")
+  CONTENT_INTELLIGENCE @map("content_intelligence")
+
+  @@map("ai_operation")
+}
+
+enum AiRunStatus {
+  SUCCEEDED @map("succeeded")
+  FAILED    @map("failed")
+
+  @@map("ai_run_status")
+}
+
+enum AiErrorCategory {
+  AUTHENTICATION       @map("authentication")
+  CONTENT_POLICY       @map("content_policy")
+  INVALID_REQUEST      @map("invalid_request")
+  INVALID_RESPONSE     @map("invalid_response")
+  PROVIDER_UNAVAILABLE @map("provider_unavailable")
+  QUOTA                @map("quota")
+  RATE_LIMIT           @map("rate_limit")
+  TIMEOUT              @map("timeout")
+  UNKNOWN              @map("unknown")
+
+  @@map("ai_error_category")
+}
+
 model User {
   id              String    @id @default(uuid()) @db.Uuid
   email           String    @unique @db.VarChar(320)
@@ -106,6 +134,7 @@ model Organization {
   transcripts          Transcript[]
   contentAnalyses      ContentAnalysis[]
   contentOpportunities ContentOpportunity[]
+  aiRuns               AiRun[]
 
   @@map("organizations")
 }
@@ -143,6 +172,7 @@ model Project {
   transcripts          Transcript[]
   contentAnalyses      ContentAnalysis[]
   contentOpportunities ContentOpportunity[]
+  aiRuns               AiRun[]
 
   @@index([organizationId, updatedAt])
   @@index([createdById])
@@ -187,6 +217,7 @@ model MediaAsset {
   transcript           Transcript?
   contentAnalysis      ContentAnalysis?
   contentOpportunities ContentOpportunity[]
+  aiRuns               AiRun[]
 
   @@unique([storageProvider, storageBucket, storageKey])
   @@index([organizationId, createdAt])
@@ -213,6 +244,7 @@ model MediaJob {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
   mediaAsset   MediaAsset   @relation(fields: [mediaAssetId], references: [id], onDelete: Cascade)
+  aiRuns       AiRun[]
 
   // One job of each type per media asset. This is the idempotency key that makes
   // a repeated completion call reuse the existing job instead of queueing again.
@@ -220,6 +252,55 @@ model MediaJob {
   @@index([organizationId, createdAt])
   @@index([status, queuedAt])
   @@map("media_jobs")
+}
+
+/**
+ * Append-only record of one actual external AI provider attempt. Pricing rates
+ * are copied onto the row so a future catalog update cannot rewrite history.
+ */
+model AiRun {
+  id                                String           @id @default(uuid()) @db.Uuid
+  organizationId                    String           @map("organization_id") @db.Uuid
+  projectId                         String?          @map("project_id") @db.Uuid
+  mediaAssetId                      String?          @map("media_asset_id") @db.Uuid
+  mediaJobId                        String?          @map("media_job_id") @db.Uuid
+  operation                         AiOperation
+  provider                          String           @db.VarChar(32)
+  model                             String           @db.VarChar(100)
+  status                            AiRunStatus
+  attempt                           Int
+  inputTokens                       Int?             @map("input_tokens")
+  outputTokens                      Int?             @map("output_tokens")
+  cachedTokens                      Int?             @map("cached_tokens")
+  cacheWriteTokens                  Int?             @map("cache_write_tokens")
+  reasoningTokens                   Int?             @map("reasoning_tokens")
+  audioSeconds                      Float?           @map("audio_seconds")
+  latencyMs                         Int              @map("latency_ms")
+  providerRequestId                 String?          @map("provider_request_id") @db.VarChar(255)
+  errorCategory                     AiErrorCategory? @map("error_category")
+  estimatedCostMicros               BigInt?          @map("estimated_cost_micros")
+  actualCostMicros                  BigInt?          @map("actual_cost_micros")
+  pricingVersion                    String?          @map("pricing_version") @db.VarChar(100)
+  pricingSourceUrl                  String?          @map("pricing_source_url") @db.Text
+  pricingEffectiveFrom              DateTime?        @map("pricing_effective_from") @db.Date
+  pricingEffectiveThrough           DateTime?        @map("pricing_effective_through") @db.Date
+  inputMicrosPerMillionTokens       Int?             @map("input_micros_per_million_tokens")
+  outputMicrosPerMillionTokens      Int?             @map("output_micros_per_million_tokens")
+  cachedInputMicrosPerMillionTokens Int?             @map("cached_input_micros_per_million_tokens")
+  cacheWriteMicrosPerMillionTokens  Int?             @map("cache_write_micros_per_million_tokens")
+  audioMicrosPerMinute              Int?             @map("audio_micros_per_minute")
+  createdAt                         DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  project      Project?     @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  mediaAsset   MediaAsset?  @relation(fields: [mediaAssetId], references: [id], onDelete: SetNull)
+  mediaJob     MediaJob?    @relation(fields: [mediaJobId], references: [id], onDelete: SetNull)
+
+  @@unique([mediaJobId, attempt])
+  @@index([organizationId, createdAt])
+  @@index([projectId, createdAt])
+  @@index([operation, provider, model, createdAt])
+  @@map("ai_runs")
 }
 
 model Transcript {

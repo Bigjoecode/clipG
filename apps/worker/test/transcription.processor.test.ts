@@ -70,6 +70,7 @@ describe('TranscriptionProcessor', () => {
   const upsertTranscript = vi.fn();
   const deleteSegments = vi.fn();
   const createSegments = vi.fn();
+  const createAiRun = vi.fn();
   const transaction = vi.fn((operations: readonly unknown[]) =>
     Promise.all(operations),
   );
@@ -79,6 +80,7 @@ describe('TranscriptionProcessor', () => {
 
   const database = {
     $transaction: transaction,
+    aiRun: { create: createAiRun },
     mediaJob: { findUnique: findJob, update: updateJob },
     transcript: { findUnique: findTranscript, upsert: upsertTranscript },
     transcriptSegment: {
@@ -93,8 +95,10 @@ describe('TranscriptionProcessor', () => {
   function processor(attempts = 3) {
     return new TranscriptionProcessor(database, storage, extractor, provider, {
       attempts,
+      model: 'nova-2',
       maxAudioBytes: 25 * 1024 * 1024,
       maxSourceBytes: 50 * 1024 * 1024,
+      provider: 'deepgram',
       signedUrlLifetimeSeconds: 3_600,
     });
   }
@@ -107,6 +111,7 @@ describe('TranscriptionProcessor', () => {
     upsertTranscript.mockResolvedValue({});
     deleteSegments.mockResolvedValue({ count: 0 });
     createSegments.mockResolvedValue({ count: 1 });
+    createAiRun.mockResolvedValue({});
     createSignedDownloadUrl.mockResolvedValue({
       expiresAt: new Date(),
       url: 'https://storage.example/signed',
@@ -201,6 +206,19 @@ describe('TranscriptionProcessor', () => {
       data: { status: 'SUCCEEDED' },
     });
     expect(transaction).toHaveBeenCalledOnce();
+    expect(createAiRun.mock.calls[0]?.[0]).toHaveProperty('data.attempt', 1);
+    expect(createAiRun.mock.calls[0]?.[0]).toHaveProperty(
+      'data.mediaJobId',
+      mediaJobId,
+    );
+    expect(createAiRun.mock.calls[0]?.[0]).toHaveProperty(
+      'data.operation',
+      'TRANSCRIPTION',
+    );
+    expect(createAiRun.mock.calls[0]?.[0]).toHaveProperty(
+      'data.status',
+      'SUCCEEDED',
+    );
     expect(discardTemporaryMedia).toHaveBeenCalledOnce();
   });
 
@@ -219,17 +237,40 @@ describe('TranscriptionProcessor', () => {
   });
 
   it('returns a retryable provider failure to the queue', async () => {
+    findJob.mockResolvedValueOnce(jobRecord({ attempts: 1 }));
     transcribe.mockRejectedValueOnce(
-      new TranscriptionProviderError('OpenAI is busy.', true),
+      new TranscriptionProviderError('OpenAI is busy.', true, 'RATE_LIMIT', {
+        audioSeconds: null,
+        cachedInputTokens: null,
+        cacheWriteTokens: null,
+        inputTokens: null,
+        latencyMs: 25,
+        outputTokens: null,
+        reasoningTokens: null,
+        requestId: 'request-2',
+      }),
     );
 
     await expect(processor().process(queuedJob())).rejects.toThrow(
       'OpenAI is busy.',
     );
     expect(updateJob.mock.calls.at(-1)?.[0]).toMatchObject({
-      data: { attempts: 1, status: 'QUEUED' },
+      data: { attempts: 2, status: 'QUEUED' },
     });
     expect(discardTemporaryMedia).toHaveBeenCalledOnce();
+    expect(createAiRun.mock.calls[0]?.[0]).toHaveProperty('data.attempt', 2);
+    expect(createAiRun.mock.calls[0]?.[0]).toHaveProperty(
+      'data.errorCategory',
+      'RATE_LIMIT',
+    );
+    expect(createAiRun.mock.calls[0]?.[0]).toHaveProperty(
+      'data.providerRequestId',
+      'request-2',
+    );
+    expect(createAiRun.mock.calls[0]?.[0]).toHaveProperty(
+      'data.status',
+      'FAILED',
+    );
   });
 
   it('marks a non-retryable provider rejection permanently failed', async () => {
@@ -243,5 +284,6 @@ describe('TranscriptionProcessor', () => {
     expect(updateJob.mock.calls.at(-1)?.[0]).toMatchObject({
       data: { status: 'FAILED' },
     });
+    expect(createAiRun).toHaveBeenCalledOnce();
   });
 });

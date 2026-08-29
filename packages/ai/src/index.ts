@@ -71,6 +71,7 @@ export interface ContentIntelligenceResult {
   readonly topics: readonly string[];
   readonly keywords: readonly string[];
   readonly opportunities: readonly ContentIntelligenceOpportunity[];
+  readonly usage: AiUsage;
 }
 
 export interface ContentIntelligenceProvider {
@@ -102,6 +103,7 @@ export interface TranscriptionResult {
   /** Whether this provider attributed speech to speakers for this request. */
   readonly diarized: boolean;
   readonly speakerCount: number | null;
+  readonly usage: AiUsage;
 }
 
 export interface TranscriptionProvider {
@@ -126,7 +128,27 @@ export type { DeepgramTranscriptionProviderOptions } from './deepgram-transcript
 export { distinctSpeakerCount } from './speakers.js';
 export {
   ContentIntelligenceProviderError,
-  OpenAIContentIntelligenceProvider,
   contentIntelligenceResultSchema,
-} from './openai-content-intelligence.js';
+  parseContentIntelligence,
+} from './content-intelligence-result.js';
+export { AnthropicContentIntelligenceProvider } from './anthropic-content-intelligence.js';
+export type { AnthropicContentIntelligenceProviderOptions } from './anthropic-content-intelligence.js';
+export {
+  GeminiContentIntelligenceProvider,
+  geminiContentIntelligenceSchema,
+} from './gemini-content-intelligence.js';
+export type { GeminiContentIntelligenceProviderOptions } from './gemini-content-intelligence.js';
+export { OpenAIContentIntelligenceProvider } from './openai-content-intelligence.js';
 export type { OpenAIContentIntelligenceProviderOptions } from './openai-content-intelligence.js';
+export { aiPricingCatalog, estimateAiCost } from './pricing.js';
+export type {
+  AiCostEstimate,
+  AiOperation,
+  AiPricingSnapshot,
+} from './pricing.js';
+export { emptyAiUsage, finiteUsageCount } from './usage.js';
+export type { AiErrorCategory, AiUsage } from './usage.js';
+export { aggregateAiUsage } from './aggregation.js';
+export type { AiUsageLedgerRecord, AiUsageTotal } from './aggregation.js';
+
+import type { AiUsage } from './usage.js';

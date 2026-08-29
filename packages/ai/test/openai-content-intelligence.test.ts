@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   ContentIntelligenceProviderError,
   OpenAIContentIntelligenceProvider,
-} from '../src/openai-content-intelligence.js';
+} from '../src/index.js';
 
 const result = {
   keywords: ['faith', 'forgiveness'],
@@ -79,6 +79,35 @@ describe('OpenAIContentIntelligenceProvider', () => {
     );
   });
 
+  it('preserves normalized OpenAI token and request usage', async () => {
+    const usage = {
+      audioSeconds: null,
+      cachedInputTokens: 20,
+      cacheWriteTokens: null,
+      inputTokens: 100,
+      latencyMs: 0,
+      outputTokens: 40,
+      reasoningTokens: 5,
+      requestId: 'response-1',
+    };
+    const provider = new OpenAIContentIntelligenceProvider({
+      apiKey: 'test-openai-key-not-a-secret',
+      model: 'gpt-5.6-terra',
+      request: vi.fn().mockResolvedValue({ result, usage }),
+      timeoutMs: 30_000,
+    });
+
+    const analyzed = await provider.analyze(request());
+    expect(analyzed.usage).toMatchObject({
+      cachedInputTokens: 20,
+      inputTokens: 100,
+      outputTokens: 40,
+      reasoningTokens: 5,
+      requestId: 'response-1',
+    });
+    expect(analyzed.usage.latencyMs).toBeGreaterThanOrEqual(0);
+  });
+
   it('rejects opportunities outside the source duration', async () => {
     const provider = new OpenAIContentIntelligenceProvider({
       apiKey: 'test-openai-key-not-a-secret',
@@ -92,7 +121,7 @@ describe('OpenAIContentIntelligenceProvider', () => {
 
     await expect(provider.analyze(request())).rejects.toMatchObject({
       message:
-        'OpenAI returned content intelligence with invalid source evidence or timing.',
+        'The model returned content intelligence with invalid source evidence or timing.',
       retryable: true,
     });
   });
@@ -128,7 +157,7 @@ describe('OpenAIContentIntelligenceProvider', () => {
 
     await expect(provider.analyze(request())).rejects.toMatchObject({
       message:
-        'OpenAI returned content intelligence with invalid source evidence or timing.',
+        'The model returned content intelligence with invalid source evidence or timing.',
       retryable: true,
     });
   });

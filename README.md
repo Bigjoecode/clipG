@@ -59,12 +59,30 @@ A transcript is derived data, so it can be re-made: `POST` to
 `{"replaceExisting": true}` re-transcribes and replaces an existing transcript,
 which is how you move between providers without re-uploading the video.
 
-Content intelligence additionally requires `OPENAI_API_KEY`, even when Deepgram
-is selected for transcription. It runs asynchronously after transcription,
-uses a versioned prompt and strict Structured Outputs, and stores source-timed
-opportunities with evidence and quality scores. The configurable defaults are
-in `.env.example`; see the
-[content intelligence architecture](docs/architecture/content-intelligence.md).
+Content intelligence additionally requires a key for its own selected provider,
+independently of transcription: `GEMINI_API_KEY` by default, `OPENAI_API_KEY`
+when `CONTENT_INTELLIGENCE_PROVIDER=openai`, or `ANTHROPIC_API_KEY` for `anthropic`.
+Consumer subscriptions such as Claude Pro or Gemini Pro do not grant API access —
+each provider bills API usage separately. It runs asynchronously after
+transcription, uses a versioned prompt and schema-constrained decoding, and
+stores source-timed opportunities with evidence and quality scores. Every
+provider's output passes the same schema validation and transcript grounding, so
+a returned opportunity must fit inside the recording and quote text that actually
+occurs in the range it claims.
+
+Before pointing customer recordings at any provider tier, read its current data
+terms. The content-intelligence request contains transcript text and project
+context, never source-video bytes.
+The configurable defaults are in `.env.example`; see the
+[content intelligence architecture](docs/architecture/content-intelligence.md)
+and the [provider selection note](docs/ai/architecture.md).
+
+Every real transcription and content-intelligence provider attempt creates an
+append-only `ai_runs` ledger row. It records normalized token/audio usage,
+latency, provider request id, retry attempt, failure category, and a versioned
+integer micro-dollar estimate where an approved price exists. Actual provider
+charges stay separate and null until supplied by a billing source. Apply the
+latest migration before starting the worker.
 
 To use local PostgreSQL and Redis instead, start Docker Desktop and run
 `corepack pnpm services:up` before applying migrations. Supabase Auth and Storage

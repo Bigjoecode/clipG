@@ -99,6 +99,44 @@ describe('environment validation', () => {
     expect(() => parseTranscriptionEnvironment({})).toThrow();
   });
 
+  it('requires the key belonging to the selected content intelligence provider', () => {
+    expect(() =>
+      parseContentIntelligenceEnvironment({
+        GEMINI_API_KEY: 'gemini-test-intelligence-key',
+      }),
+    ).not.toThrow();
+    expect(() =>
+      parseContentIntelligenceEnvironment({
+        CONTENT_INTELLIGENCE_PROVIDER: 'gemini',
+        OPENAI_API_KEY: 'sk-test-intelligence-key',
+      }),
+    ).toThrow(/GEMINI_API_KEY is required/);
+    expect(() =>
+      parseContentIntelligenceEnvironment({
+        CONTENT_INTELLIGENCE_PROVIDER: 'anthropic',
+        OPENAI_API_KEY: 'sk-test-intelligence-key',
+      }),
+    ).toThrow(/ANTHROPIC_API_KEY is required/);
+    expect(
+      parseContentIntelligenceEnvironment({
+        ANTHROPIC_API_KEY: 'sk-ant-test-intelligence-key',
+        CONTENT_INTELLIGENCE_PROVIDER: 'anthropic',
+      }),
+    ).toMatchObject({ CONTENT_INTELLIGENCE_PROVIDER: 'anthropic' });
+    expect(
+      parseContentIntelligenceEnvironment({
+        CONTENT_INTELLIGENCE_PROVIDER: 'gemini',
+        GEMINI_API_KEY: 'gemini-test-intelligence-key',
+      }),
+    ).toMatchObject({ CONTENT_INTELLIGENCE_PROVIDER: 'gemini' });
+    expect(
+      parseContentIntelligenceEnvironment({
+        CONTENT_INTELLIGENCE_PROVIDER: 'gemini',
+        GEMINI_API_KEY: 'gemini-test-intelligence-key',
+      }).CONTENT_INTELLIGENCE_MODEL,
+    ).toBeUndefined();
+  });
+
   it('requires the key belonging to the selected transcription provider', () => {
     expect(() =>
       parseTranscriptionEnvironment({
@@ -127,15 +165,15 @@ describe('environment validation', () => {
     ).toBeUndefined();
   });
 
-  it('requires a server-only OpenAI key for bounded content intelligence', () => {
+  it('defaults bounded content intelligence to Gemini', () => {
     expect(() => parseContentIntelligenceEnvironment({})).toThrow();
     expect(
       parseContentIntelligenceEnvironment({
-        OPENAI_API_KEY: 'sk-test-content-intelligence-key',
+        GEMINI_API_KEY: 'gemini-test-content-intelligence-key',
       }),
     ).toMatchObject({
       CONTENT_INTELLIGENCE_MAX_TRANSCRIPT_CHARACTERS: 200_000,
-      CONTENT_INTELLIGENCE_MODEL: 'gpt-5.6-terra',
+      CONTENT_INTELLIGENCE_PROVIDER: 'gemini',
       CONTENT_INTELLIGENCE_TIMEOUT_MS: 300_000,
     });
     expect(parseContentIntelligenceJobEnvironment({})).toEqual({

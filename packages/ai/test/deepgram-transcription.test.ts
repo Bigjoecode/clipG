@@ -26,7 +26,7 @@ function provider(fetchImplementation: typeof fetch) {
 }
 
 const twoSpeakerResponse = {
-  metadata: { duration: 65.2 },
+  metadata: { duration: 65.2, request_id: 'deepgram-request-1' },
   results: {
     channels: [
       {
@@ -54,11 +54,10 @@ describe('DeepgramTranscriptionProvider', () => {
       .fn()
       .mockResolvedValue(jsonResponse(twoSpeakerResponse));
 
-    await expect(
-      provider(fetchMock as unknown as typeof fetch).transcribe({
-        mediaUri: fixturePath,
-      }),
-    ).resolves.toEqual({
+    const result = await provider(fetchMock).transcribe({
+      mediaUri: fixturePath,
+    });
+    expect(result).toMatchObject({
       diarized: true,
       durationSeconds: 65.2,
       language: 'en',
@@ -80,7 +79,17 @@ describe('DeepgramTranscriptionProvider', () => {
       ],
       speakerCount: 2,
       text: 'Welcome everyone. Thanks for having me.',
+      usage: {
+        audioSeconds: 65.2,
+        cacheWriteTokens: null,
+        cachedInputTokens: null,
+        inputTokens: null,
+        outputTokens: null,
+        reasoningTokens: null,
+        requestId: 'deepgram-request-1',
+      },
     });
+    expect(result.usage.latencyMs).toBeGreaterThanOrEqual(0);
   });
 
   it('requests diarized utterances so speaker data reaches the domain', async () => {
