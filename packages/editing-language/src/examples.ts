@@ -35,7 +35,11 @@ const planBase = {
   platform: 'NONE' as const,
   retention: 'KEEP_ALL_EXCEPT_REMOVED' as const,
   schemaVersion: '1.0' as const,
-  source: { durationMs: s(2_700), mediaAssetId: SOURCE_MEDIA_ID },
+  source: {
+    durationMs: s(2_700),
+    mediaAssetId: SOURCE_MEDIA_ID,
+    source: 'SOURCE_MEDIA' as const,
+  },
 };
 
 /** "Remove the first 8 seconds." */

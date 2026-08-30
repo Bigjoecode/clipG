@@ -7,6 +7,8 @@ import { rangesOverlap, type TimeRange } from './time.js';
 export const editPlanIssueCodes = [
   'SCHEMA_INVALID',
   'UNSUPPORTED_SCHEMA_VERSION',
+  'SOURCE_MEDIA_MISMATCH',
+  'SOURCE_DURATION_MISMATCH',
   'DUPLICATE_OPERATION_ID',
   'RANGE_OUTSIDE_SOURCE',
   'ASSET_NOT_IN_CONTEXT',
@@ -107,6 +109,22 @@ export function validateEditPlan(
     context.assets.map((asset) => [asset.assetId, asset]),
   );
 
+  if (plan.source.mediaAssetId !== context.sourceMediaId) {
+    issues.push({
+      code: 'SOURCE_MEDIA_MISMATCH',
+      message: `Plan source ${plan.source.mediaAssetId} does not match the authoritative source ${context.sourceMediaId}.`,
+      path: 'source.mediaAssetId',
+    });
+  }
+
+  if (plan.source.durationMs !== context.sourceDurationMs) {
+    issues.push({
+      code: 'SOURCE_DURATION_MISMATCH',
+      message: `Plan source duration ${plan.source.durationMs}ms does not match the authoritative duration ${context.sourceDurationMs}ms.`,
+      path: 'source.durationMs',
+    });
+  }
+
   for (const operation of plan.operations) {
     if (seenIds.has(operation.id)) {
       issues.push({
@@ -118,10 +136,10 @@ export function validateEditPlan(
     seenIds.add(operation.id);
 
     const range = timeRangeOf(operation);
-    if (range !== undefined && range.endMs > plan.source.durationMs) {
+    if (range !== undefined && range.endMs > context.sourceDurationMs) {
       issues.push({
         code: 'RANGE_OUTSIDE_SOURCE',
-        message: `Operation ends at ${range.endMs}ms but the source is ${plan.source.durationMs}ms long.`,
+        message: `Operation ends at ${range.endMs}ms but the authoritative source is ${context.sourceDurationMs}ms long.`,
         operationId: operation.id,
       });
     }

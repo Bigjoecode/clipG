@@ -75,6 +75,7 @@ Every asset reference carries its origin explicitly:
 
 Provenance is never inferred from an id. The validator enforces three rules that follow directly from the engineering instructions:
 
+- **The plan source is explicitly `SOURCE_MEDIA`.** Its stable ID and duration must match the authoritative asset context; model output cannot substitute a different upload or enlarge the timeline.
 - **Source media is not insertable.** It is the base of the timeline, not an overlay. An operation claiming to insert it is rejected.
 - **AI-generated media requires permission.** Unless the asset context passes `allowAiGeneratedAssets: true`, any AI asset is rejected. It defaults to `false` everywhere.
 - **A claim must match reality.** If the context says an asset is AI-generated and the operation calls it a user asset, the plan is rejected rather than quietly accepted.
@@ -135,7 +136,7 @@ There is no filter string, shell fragment, or library-specific option anywhere i
 
 A plan is only meaningful **relative to a context**. The same operations are correct for one project and reference non-existent media in another, so the validator always takes an `AssetContext` describing the source, its duration, the available assets, and whether AI-generated media is permitted.
 
-It checks: schema version, operation structure, unknown fields (rejected, not dropped), duplicate operation ids, temporal ranges against the real source duration, transition duration against its own range, asset existence, asset provenance, asset kind against the operation, retention consistency, and conflicts.
+It checks: schema version, operation structure, unknown fields (rejected, not dropped), source provenance and identity, source duration against the authoritative context, duplicate operation ids, temporal ranges against the real source duration, transition duration against its own range, asset existence, asset provenance, asset kind against the operation, retention consistency, and conflicts.
 
 ### Conflict detection
 

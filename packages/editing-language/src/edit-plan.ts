@@ -40,6 +40,8 @@ export const editPlanSourceSchema = z
   .object({
     durationMs: durationMillisecondsSchema,
     mediaAssetId: z.uuid(),
+    /** The base timeline is always the user's original, immutable upload. */
+    source: z.literal('SOURCE_MEDIA'),
   })
   .strict();
 

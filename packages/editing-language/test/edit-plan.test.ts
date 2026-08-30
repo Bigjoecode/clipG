@@ -48,7 +48,11 @@ function plan(overrides: Partial<EditPlan> = {}): EditPlan {
     platform: 'NONE',
     retention: 'KEEP_ALL_EXCEPT_REMOVED',
     schemaVersion: '1.0',
-    source: { durationMs: 600_000, mediaAssetId: SOURCE_MEDIA_ID },
+    source: {
+      durationMs: 600_000,
+      mediaAssetId: SOURCE_MEDIA_ID,
+      source: 'SOURCE_MEDIA',
+    },
     ...overrides,
   };
 }
@@ -194,6 +198,50 @@ describe('temporal validation', () => {
 });
 
 describe('asset provenance', () => {
+  it('identifies the original timeline asset explicitly as source media', () => {
+    expect(plan().source.source).toBe('SOURCE_MEDIA');
+    expect(
+      editPlanSchema.safeParse({
+        ...plan(),
+        source: {
+          durationMs: 600_000,
+          mediaAssetId: SOURCE_MEDIA_ID,
+          source: 'USER_ASSET',
+        },
+      }).success,
+    ).toBe(false);
+  });
+
+  it('rejects a plan for a different source asset', () => {
+    const result = validateEditPlan(
+      plan({
+        source: {
+          durationMs: 600_000,
+          mediaAssetId: '99999999-9999-4999-8999-999999999999',
+          source: 'SOURCE_MEDIA',
+        },
+      }),
+      context,
+    );
+
+    expect(issueCodes(result)).toContain('SOURCE_MEDIA_MISMATCH');
+  });
+
+  it('rejects a plan that misstates the authoritative source duration', () => {
+    const result = validateEditPlan(
+      plan({
+        source: {
+          durationMs: 900_000,
+          mediaAssetId: SOURCE_MEDIA_ID,
+          source: 'SOURCE_MEDIA',
+        },
+      }),
+      context,
+    );
+
+    expect(issueCodes(result)).toContain('SOURCE_DURATION_MISMATCH');
+  });
+
   it('accepts a user asset that exists in the context', () => {
     const result = validateEditPlan(
       plan({
