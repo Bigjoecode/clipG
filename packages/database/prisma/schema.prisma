@@ -106,6 +106,28 @@ enum AiErrorCategory {
   @@map("ai_error_category")
 }
 
+enum RenderStatus {
+  QUEUED    @map("queued")
+  RUNNING   @map("running")
+  SUCCEEDED @map("succeeded")
+  FAILED    @map("failed")
+
+  @@map("render_status")
+}
+
+enum RenderErrorCategory {
+  INVALID_EDIT_PLAN     @map("invalid_edit_plan")
+  MISSING_SOURCE_MEDIA  @map("missing_source_media")
+  MISSING_ASSET         @map("missing_asset")
+  UNSUPPORTED_OPERATION @map("unsupported_operation")
+  UNSUPPORTED_CODEC     @map("unsupported_codec")
+  RENDERER_FAILURE      @map("renderer_failure")
+  STORAGE_FAILURE       @map("storage_failure")
+  TIMEOUT               @map("timeout")
+
+  @@map("render_error_category")
+}
+
 model User {
   id              String    @id @default(uuid()) @db.Uuid
   email           String    @unique @db.VarChar(320)
@@ -137,6 +159,7 @@ model Organization {
   contentAnalyses      ContentAnalysis[]
   contentOpportunities ContentOpportunity[]
   aiRuns               AiRun[]
+  renders              Render[]
 
   @@map("organizations")
 }
@@ -175,6 +198,7 @@ model Project {
   contentAnalyses      ContentAnalysis[]
   contentOpportunities ContentOpportunity[]
   aiRuns               AiRun[]
+  renders              Render[]
 
   @@index([organizationId, updatedAt])
   @@index([createdById])
@@ -220,6 +244,7 @@ model MediaAsset {
   contentAnalysis      ContentAnalysis?
   contentOpportunities ContentOpportunity[]
   aiRuns               AiRun[]
+  renders              Render[]
 
   @@unique([storageProvider, storageBucket, storageKey])
   @@index([organizationId, createdAt])
@@ -417,4 +442,50 @@ model TranscriptSegment {
   @@unique([transcriptId, index])
   @@index([transcriptId, startSeconds])
   @@map("transcript_segments")
+}
+
+/**
+ * One immutable rendering intent and its output. The plan and resolved asset
+ * manifest are snapshotted so a replay executes the same inputs; media bytes
+ * remain in object storage rather than PostgreSQL.
+ */
+model Render {
+  id                     String               @id @default(uuid()) @db.Uuid
+  organizationId         String               @map("organization_id") @db.Uuid
+  projectId              String               @map("project_id") @db.Uuid
+  sourceMediaAssetId     String               @map("source_media_asset_id") @db.Uuid
+  idempotencyKey         String               @map("idempotency_key") @db.Char(64)
+  editPlan               Json                 @map("edit_plan")
+  assetManifest          Json                 @map("asset_manifest")
+  allowAiGeneratedAssets Boolean              @default(false) @map("allow_ai_generated_assets")
+  status                 RenderStatus         @default(QUEUED)
+  attempts               Int                  @default(0)
+  backend                String?              @db.VarChar(32)
+  rendererVersion        String?              @map("renderer_version") @db.VarChar(32)
+  outputBucket           String?              @map("output_bucket") @db.VarChar(100)
+  outputKey              String?              @map("output_key") @db.Text
+  outputContentType      String?              @map("output_content_type") @db.VarChar(100)
+  outputSizeBytes        BigInt?              @map("output_size_bytes")
+  outputDurationMs       Int?                 @map("output_duration_ms")
+  outputWidth            Int?                 @map("output_width")
+  outputHeight           Int?                 @map("output_height")
+  outputVideoCodec       String?              @map("output_video_codec") @db.VarChar(64)
+  outputAudioCodec       String?              @map("output_audio_codec") @db.VarChar(64)
+  renderDurationMs       Int?                 @map("render_duration_ms")
+  errorCategory          RenderErrorCategory? @map("error_category")
+  failureReason          String?              @map("failure_reason") @db.VarChar(500)
+  queuedAt               DateTime             @default(now()) @map("queued_at") @db.Timestamptz(3)
+  startedAt              DateTime?            @map("started_at") @db.Timestamptz(3)
+  finishedAt             DateTime?            @map("finished_at") @db.Timestamptz(3)
+  createdAt              DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt              DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sourceMedia  MediaAsset   @relation(fields: [sourceMediaAssetId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, idempotencyKey])
+  @@index([projectId, createdAt])
+  @@index([status, queuedAt])
+  @@map("renders")
 }

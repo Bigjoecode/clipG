@@ -1,12 +1,18 @@
 # ClipGenius
 
+Task 011 adds the first deterministic FFmpeg rendering vertical slice. See
+[`docs/architecture/rendering-engine.md`](docs/architecture/rendering-engine.md)
+for supported operations, worker/storage integration, and current limitations.
+
 ClipGenius is an AI Content Production Engine that turns one raw video into polished, platform-optimized content.
 
 The repository currently includes the engineering foundation, PostgreSQL domain
 model, Supabase authentication and organizations, projects, secure source-video
 uploads, background media analysis, and timestamped transcription. Content
-intelligence and source-timed opportunity discovery are also implemented. AI
-editing, rendering, billing, and publishing are not yet implemented.
+intelligence, the validated Editing Language, the AI Creative Director, and the
+first deterministic FFmpeg rendering vertical slice are also implemented. The
+complete editing operation set, campaign generation, billing, and publishing are
+not yet implemented.
 
 ## Prerequisites
 

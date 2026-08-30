@@ -60,5 +60,18 @@ export interface ServerObjectReader {
   createSignedDownloadUrl(
     key: string,
     lifetimeSeconds: number,
+    bucket?: string,
   ): Promise<SignedDownload>;
+}
+
+export interface PutFileInput {
+  readonly bucket: string;
+  readonly contentType: string;
+  readonly key: string;
+  readonly path: string;
+}
+
+/** Trusted worker-only write boundary for completed render artifacts. */
+export interface ServerObjectWriter {
+  putFile(input: PutFileInput): Promise<StoredObject>;
 }

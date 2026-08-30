@@ -61,3 +61,35 @@ export {
   ffmpegBinaryPath,
 } from './ffmpeg-audio.js';
 export type { FfmpegAudioExtractorOptions } from './ffmpeg-audio.js';
+export { RenderError, validatePlanForRendering } from './renderer.js';
+export type {
+  RenderErrorCategory,
+  RenderedMedia,
+  Renderer,
+  RenderRequest,
+  RenderResult,
+  RenderSource,
+  ResolvedRenderAsset,
+  ValidatedEditPlan,
+} from './renderer.js';
+export { compileRenderTimeline } from './timeline.js';
+export type {
+  RenderDimensions,
+  RenderTimeline,
+  TimelineAudioLevel,
+  TimelineOverlay,
+  TimelineRange,
+  TimelineSegment,
+  TimelineText,
+  TimelineZoom,
+} from './timeline.js';
+export { FfmpegRenderer, ffmpegRenderArguments } from './ffmpeg-renderer.js';
+export type { FfmpegRendererOptions } from './ffmpeg-renderer.js';
+export {
+  renderAssetManifestSchema,
+  storedRenderAssetSchema,
+} from './render-manifest.js';
+export type {
+  RenderAssetManifest,
+  StoredRenderAsset,
+} from './render-manifest.js';

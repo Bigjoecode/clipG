@@ -136,6 +136,23 @@ export const creativeDirectorEnvironmentSchema = z
     }
   });
 
+export const renderEnvironmentSchema = z.object({
+  RENDER_ATTEMPTS: z.coerce.number().int().min(1).max(5).default(2),
+  RENDER_CONCURRENCY: z.coerce.number().int().min(1).max(4).default(1),
+  RENDER_MAX_OUTPUT_BYTES: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(50 * 1024 * 1024 * 1024)
+    .default(2 * 1024 * 1024 * 1024),
+  RENDER_TIMEOUT_MS: z.coerce
+    .number()
+    .int()
+    .min(1_000)
+    .max(7_200_000)
+    .default(1_800_000),
+});
+
 /**
  * Server-only configuration for the background worker. The Supabase secret key
  * bypasses Storage row-level security, so it must never reach the browser: the
@@ -250,6 +267,7 @@ export type ContentIntelligenceEnvironment = z.infer<
 export type CreativeDirectorEnvironment = z.infer<
   typeof creativeDirectorEnvironmentSchema
 >;
+export type RenderEnvironment = z.infer<typeof renderEnvironmentSchema>;
 
 export function parseApiEnvironment(
   source: Record<string, string | undefined>,
@@ -327,6 +345,12 @@ export function parseCreativeDirectorEnvironment(
   source: Record<string, string | undefined>,
 ): CreativeDirectorEnvironment {
   return creativeDirectorEnvironmentSchema.parse(source);
+}
+
+export function parseRenderEnvironment(
+  source: Record<string, string | undefined>,
+): RenderEnvironment {
+  return renderEnvironmentSchema.parse(source);
 }
 
 export interface RedisConnectionOptions {

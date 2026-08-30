@@ -36,9 +36,10 @@ export class SupabaseServerObjectReader implements ServerObjectReader {
   public async createSignedDownloadUrl(
     key: string,
     lifetimeSeconds: number,
+    bucket = this.bucket,
   ): Promise<SignedDownload> {
     const { data, error } = await this.client.storage
-      .from(this.bucket)
+      .from(bucket)
       .createSignedUrl(key, lifetimeSeconds);
     if (error !== null) {
       throw new StorageReadError(

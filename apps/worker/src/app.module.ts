@@ -10,6 +10,7 @@ import { MediaProbeModule } from './media/media-probe.module.js';
 import { StorageReaderModule } from './storage/storage-reader.module.js';
 import { TranscriptionModule } from './transcription/transcription.module.js';
 import { ContentIntelligenceModule } from './content-intelligence/content-intelligence.module.js';
+import { RenderModule } from './render/render.module.js';
 
 const environment = parseWorkerEnvironment(process.env);
 
@@ -23,6 +24,7 @@ const environment = parseWorkerEnvironment(process.env);
     MediaProbeModule,
     TranscriptionModule,
     ContentIntelligenceModule,
+    RenderModule,
   ],
 })
 export class AppModule {}

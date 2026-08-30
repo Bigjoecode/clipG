@@ -278,3 +278,12 @@ export interface ContentAnalysisDetail extends ContentAnalysisSummary {
   readonly opportunities: readonly ContentOpportunity[];
   readonly createdAt: string;
 }
+
+export const renderQueueName = 'render';
+
+export interface RenderJobData {
+  readonly organizationId: string;
+  readonly projectId: string;
+  readonly renderId: string;
+  readonly sourceMediaAssetId: string;
+}
