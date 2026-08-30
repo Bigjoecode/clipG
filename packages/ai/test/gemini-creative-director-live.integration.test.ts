@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  CreativeDirector,
   GeminiCreativeDirectorProvider,
+  TwoStageCreativeDirector,
 } from '../src/index.js';
 
 const live =
@@ -10,23 +10,60 @@ const live =
   typeof process.env.GEMINI_API_KEY === 'string';
 
 describe.skipIf(!live)('Gemini Creative Director live integration', () => {
+  function director(): TwoStageCreativeDirector {
+    return new TwoStageCreativeDirector(
+      new GeminiCreativeDirectorProvider({
+        apiKey: process.env.GEMINI_API_KEY ?? '',
+        model: process.env.CLIPGENIUS_LIVE_GEMINI_MODEL ?? 'gemini-3.6-flash',
+        timeoutMs: 180_000,
+      }),
+      {
+        systemPrompt:
+          'You are ClipGenius Creative Director. Follow the supplied stage task and exact schema. Never invent enum values, creative parameters, assets, or source facts.',
+      },
+    );
+  }
+
+  it(
+    'runs Stage 1 and batched Stage 2 for a simple removal',
+    { timeout: 360_000 },
+    async () => {
+      const result = await director().direct(
+        {
+          sourceMedia: {
+            durationMs: 60_000,
+            mediaAssetId: '11111111-1111-4111-8111-111111111111',
+            source: 'SOURCE_MEDIA',
+          },
+          userInstruction: 'Remove the first 8 seconds.',
+        },
+        { safetyIdentifier: 'live-creative-director-simple' },
+      );
+
+      expect(result.validationStatus).toBe('VALID');
+      expect(
+        result.attempts.slice(0, 2).map((attempt) => attempt.stage),
+      ).toEqual(['INTENT', 'OPERATIONS']);
+      expect(
+        result.attempts.slice(2).every((attempt) => attempt.stage === 'REPAIR'),
+      ).toBe(true);
+      process.stdout.write(
+        `\nLIVE_CREATIVE_DIRECTOR_SIMPLE=${JSON.stringify({
+          calls: result.metrics.providerCalls,
+          costMicros: result.metrics.estimatedCostMicros?.toString() ?? null,
+          firstPassRate: result.metrics.stage2FirstPassValidRate,
+          latencyMs: result.metrics.totalLatencyMs,
+          repairRate: result.metrics.repairSuccessRate,
+        })}\n`,
+      );
+    },
+  );
+
   it(
     'returns a canonically valid plan for mixed timing, semantic, asset, caption, and platform direction',
     { timeout: 180_000 },
     async () => {
-      const director = new CreativeDirector(
-        new GeminiCreativeDirectorProvider({
-          apiKey: process.env.GEMINI_API_KEY ?? '',
-          model: process.env.CLIPGENIUS_LIVE_GEMINI_MODEL ?? 'gemini-3.6-flash',
-          timeoutMs: 180_000,
-        }),
-        {
-          systemPrompt:
-            'Return one valid ClipGenius EditPlan. Use schemaVersion 1.0 and only the exact operation, target, and trigger enum vocabulary supplied in the input. Never invent aliases.',
-        },
-      );
-
-      const result = await director.direct(
+      const result = await director().direct(
         {
           availableAssets: [
             {
@@ -78,7 +115,23 @@ describe.skipIf(!live)('Gemini Creative Director live integration', () => {
           }),
         ]),
       );
-      expect(result.usage.requestId).toBeTruthy();
+      expect(
+        result.attempts.slice(0, 2).map((attempt) => attempt.stage),
+      ).toEqual(['INTENT', 'OPERATIONS']);
+      expect(
+        result.attempts.slice(2).every((attempt) => attempt.stage === 'REPAIR'),
+      ).toBe(true);
+      expect(result.metrics.finalValidEditPlanRate).toBe(1);
+      process.stdout.write(
+        `\nLIVE_CREATIVE_DIRECTOR_COMPLEX=${JSON.stringify({
+          calls: result.metrics.providerCalls,
+          costMicros: result.metrics.estimatedCostMicros?.toString() ?? null,
+          firstPassRate: result.metrics.stage2FirstPassValidRate,
+          latencyMs: result.metrics.totalLatencyMs,
+          repairRate: result.metrics.repairSuccessRate,
+          unresolvedRate: result.metrics.unresolvedSemanticRate,
+        })}\n`,
+      );
     },
   );
 });

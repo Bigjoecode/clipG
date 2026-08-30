@@ -6,8 +6,9 @@ The Creative Director converts natural-language creative direction into a valida
 
 ```text
 user instruction + source + evidence + assets + preferences
-  -> provider-neutral Creative Director
-  -> schema-constrained provider response
+  -> Stage 1 lightweight operation intent
+  -> Stage 2 batched operation-specific schemas
+  -> at most one model repair per invalid operation
   -> deterministic grounding
   -> canonical Editing Language validation
   -> valid or unresolved EditPlan
@@ -26,7 +27,11 @@ Transcript text is untrusted content. Instructions inside it remain quoted evide
 
 ## Provider boundary
 
-`CreativeDirector` depends on `CreativeDirectorProvider`, not Gemini. The current adapter is `GeminiCreativeDirectorProvider`, with `gemini-3.6-flash` as its operational default. Gemini uses the Interactions API and a JSON schema derived from the canonical response schema. Because the Interactions decoder accepts but does not enforce nested `oneOf` branches, the adapter flattens object unions into an object whose discriminants are explicit enums and whose branch-specific fields are optional. It also removes provider-unsupported `minItems` and `maxItems`, plus `default` annotations that describe canonical parsing rather than generation constraints. This is a generation aid only: complete Zod and Editing Language constraints still run after every response and fail closed. The API key is a header, never a URL parameter.
+`TwoStageCreativeDirector` depends on `StagedCreativeDirectorProvider`, not Gemini. Stage 1 uses a small enum-based intent schema and assigns mechanical UUIDs locally. Stage 2 makes one batched call whose response keys group intents by operation type, target kind, and semantic-trigger kind. Each group schema is extracted from the corresponding canonical Zod union branch, so fields such as `ZOOM.endScale` remain required without sending the full union. One batched call was selected over one call per operation because it preserves the same exact branch enforcement with fewer round trips.
+
+The Gemini adapter owns `const` to one-value `enum` conversion and removal of `$schema`, `minItems`, `maxItems`, and parsing-only `default` annotations. The canonical Editing Language remains unchanged and authoritative.
+
+If a Stage 2 operation fails its exact schema or canonical asset/range checks, a repair request receives only the user instruction, intent, invalid operation, validation errors, source duration, and directly relevant asset. The maximum is one repair call per operation. ClipGenius never supplies a missing creative parameter itself; a failed repair rejects the request.
 
 No OpenAI billing or OpenAI Creative Director adapter is introduced by Task 010.
 
@@ -73,7 +78,7 @@ Invalid JSON, unsupported operations, incomplete output, false asset IDs, proven
 
 ## Usage accounting
 
-`CreativeDirectorExecutor` is the worker-side attempt boundary. It writes successful and failed calls through the existing append-only `AiRun` ledger as `CREATIVE_DIRECTOR`, including tenant/project/media/job context, attempt, provider/model, latency, request ID, normalized usage, estimated cost, status, and error category. Prompts and full provider responses are not stored.
+`CreativeDirectorExecutor` is the worker-side attempt boundary. It writes every Stage 1, Stage 2, and repair call through the append-only `AiRun` ledger as `CREATIVE_DIRECTOR`, including stage, tenant/project/media/job context, attempt, provider/model, latency, request ID, normalized usage, estimated cost, status, and error category. Prompts and full provider responses are not stored. Output metrics expose stage success, first-pass validity, repair success, final validity, unresolved semantics, asset resolution, provider-call count, total provider latency, and estimated total cost.
 
 ## Examples
 
@@ -101,6 +106,6 @@ If reference style asks for dynamic captions but the user says “Do not animate
 
 ## Evaluation and limitations
 
-The deterministic evaluation set contains 17 fixtures covering timestamps, assets, phrase/topic/speaker/event references, captions, visual and platform direction, autonomy, conflicts, ambiguity, missing assets, provenance, reference precedence, source preservation, and revisions. It measures instruction fidelity, timing, asset accuracy, semantic resolution, source preservation, and EditPlan validity. It is coverage, not proof of broad model quality.
+The deterministic evaluation set contains 17 domain fixtures plus focused two-stage fixtures covering Stage 1 operation selection, exact Stage 2 schemas, batching, missing creative fields, one-attempt repair, asset constraints, semantic targeting, and per-attempt accounting. These tests measure contract behavior, not broad model accuracy.
 
 Normal tests mock providers and make no paid calls. An opt-in live Gemini test proves the real decoder can produce a canonically valid EditPlan. Run it with `CLIPGENIUS_LIVE_CREATIVE_DIRECTOR=1` and `GEMINI_API_KEY`; it remains skipped in normal validation. Task 010 does not add a public queue endpoint, UI, EditPlan persistence, reference retrieval, asset generation, or rendering. Those require later product decisions and milestones.

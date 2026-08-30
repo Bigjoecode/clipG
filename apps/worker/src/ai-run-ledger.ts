@@ -13,6 +13,7 @@ export interface RecordAiRunInput {
   readonly mediaAssetId: string;
   readonly mediaJobId: string;
   readonly operation: AiOperation;
+  readonly stage?: string;
   readonly provider: string;
   readonly model: string;
   readonly attempt: number;
@@ -83,6 +84,7 @@ export async function recordAiRun(
       provider: input.provider,
       providerRequestId: normalizedUsage.requestId,
       reasoningTokens: normalizedUsage.reasoningTokens,
+      stage: input.stage ?? 'LEGACY',
       status: input.status,
     },
   });

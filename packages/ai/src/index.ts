@@ -145,9 +145,33 @@ export type {
 export {
   defaultGeminiCreativeDirectorModel,
   GeminiCreativeDirectorProvider,
+  geminiCreativeDirectorStageSchema,
   geminiCreativeDirectorSchema,
 } from './gemini-creative-director.js';
 export type { GeminiCreativeDirectorProviderOptions } from './gemini-creative-director.js';
+export {
+  creativeDirectorStages,
+  operationIntentPlanSchema,
+  operationIntentPlanDraftSchema,
+  operationIntentDraftSchema,
+  operationIntentSchema,
+  semanticKinds,
+  targetKinds,
+  TwoStageCreativeDirector,
+} from './two-stage-creative-director.js';
+export type {
+  CreativeDirectorAttempt,
+  CreativeDirectorReliabilityMetrics,
+  CreativeDirectorSchemaRequest,
+  CreativeDirectorStage,
+  OperationIntent,
+  OperationIntentPlan,
+  OperationSchemaGroup,
+  StagedCreativeDirectorProvider,
+  StagedCreativeDirectorProviderRequest,
+  TwoStageCreativeDirectorOptions,
+  TwoStageCreativeDirectorOutput,
+} from './two-stage-creative-director.js';
 export {
   creativeDirectorEvaluationDimensions,
   creativeDirectorEvaluationFixtures,

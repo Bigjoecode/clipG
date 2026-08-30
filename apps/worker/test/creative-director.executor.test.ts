@@ -4,6 +4,7 @@ import {
   type CreativeDirector,
   type CreativeDirectorInput,
   type CreativeDirectorOutput,
+  type CreativeDirectorAttempt,
 } from '@clipgenius/ai';
 import type { PrismaClient } from '@clipgenius/database';
 import { describe, expect, it, vi } from 'vitest';
@@ -27,6 +28,72 @@ function database() {
 }
 
 describe('CreativeDirectorExecutor', () => {
+  it('records Stage 1 and Stage 2 as separate provider attempts', async () => {
+    const db = database();
+    const output = {
+      model: 'gemini-3.6-flash',
+      provider: 'gemini',
+      usage: emptyAiUsage(30),
+      validationStatus: 'VALID',
+    } as CreativeDirectorOutput;
+    const stagedAttempts: CreativeDirectorAttempt[] = [
+      {
+        attempt: 1,
+        estimatedCostMicros: 10n,
+        latencyMs: 10,
+        model: 'gemini-3.6-flash',
+        provider: 'gemini',
+        stage: 'INTENT',
+        status: 'SUCCEEDED',
+        usage: { ...emptyAiUsage(10, 'intent-request'), inputTokens: 50 },
+      },
+      {
+        attempt: 2,
+        estimatedCostMicros: 20n,
+        latencyMs: 20,
+        model: 'gemini-3.6-flash',
+        provider: 'gemini',
+        stage: 'OPERATIONS',
+        status: 'SUCCEEDED',
+        usage: { ...emptyAiUsage(20, 'operations-request'), outputTokens: 30 },
+      },
+    ];
+    const director = {
+      direct: vi.fn().mockImplementation(
+        async (
+          _input: CreativeDirectorInput,
+          request: {
+            onAttempt: (attempt: CreativeDirectorAttempt) => Promise<void>;
+          },
+        ) => {
+          for (const attempt of stagedAttempts)
+            await request.onAttempt(attempt);
+          return output;
+        },
+      ),
+    };
+    const executor = new CreativeDirectorExecutor(
+      db as unknown as PrismaClient,
+      director,
+    );
+
+    await executor.execute({} as CreativeDirectorInput, context);
+
+    expect(db.aiRun.create).toHaveBeenCalledTimes(2);
+    expect(db.aiRun.create.mock.calls[0]?.[0]).toHaveProperty(
+      'data.stage',
+      'INTENT',
+    );
+    expect(db.aiRun.create.mock.calls[1]?.[0]).toHaveProperty(
+      'data.stage',
+      'OPERATIONS',
+    );
+    expect(db.aiRun.create.mock.calls[1]?.[0]).toHaveProperty(
+      'data.attempt',
+      2,
+    );
+  });
+
   it('records one successful provider attempt in the existing ledger', async () => {
     const db = database();
     const output = {

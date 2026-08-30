@@ -1,6 +1,11 @@
 import { z } from 'zod';
 
 import {
+  editOperationSchema,
+  type EditOperationType,
+} from '@clipgenius/editing-language';
+
+import {
   CreativeDirectorProviderError,
   creativeDirectorModelOutputSchema,
   creativeDirectorUserPrompt,
@@ -10,6 +15,13 @@ import {
 } from './creative-director.js';
 import { geminiApiRevision } from './gemini-content-intelligence.js';
 import { emptyAiUsage, finiteUsageCount, type AiUsage } from './usage.js';
+import {
+  operationIntentPlanDraftSchema,
+  type CreativeDirectorSchemaRequest,
+  type OperationSchemaGroup,
+  type StagedCreativeDirectorProvider,
+  type StagedCreativeDirectorProviderRequest,
+} from './two-stage-creative-director.js';
 
 const defaultBaseUrl =
   'https://generativelanguage.googleapis.com/v1beta/interactions';
@@ -146,6 +158,95 @@ export function geminiCreativeDirectorSchema(): Record<string, unknown> {
   ) as Record<string, unknown>;
 }
 
+function literalValue(schema: unknown, property: string): unknown {
+  if (!isRecord(schema) || !isRecord(schema.properties)) return undefined;
+  const value = schema.properties[property];
+  if (!isRecord(value)) return undefined;
+  return value.const ?? (Array.isArray(value.enum) ? value.enum[0] : undefined);
+}
+
+function selectObjectBranch(
+  schema: unknown,
+  property: string,
+  expected: string,
+): Record<string, unknown> {
+  if (!isRecord(schema) || !Array.isArray(schema.oneOf)) {
+    throw new Error(`Canonical schema has no union for ${property}.`);
+  }
+  const branches = schema.oneOf as unknown[];
+  const branch = branches.find(
+    (candidate) => literalValue(candidate, property) === expected,
+  );
+  if (!isRecord(branch)) {
+    throw new Error(`Canonical schema has no ${property}=${expected} branch.`);
+  }
+  return structuredClone(branch);
+}
+
+function exactOperationSchema(input: {
+  readonly semanticKind?: string;
+  readonly targetKind: string;
+  readonly type: EditOperationType;
+}): Record<string, unknown> {
+  const union = z.toJSONSchema(editOperationSchema, { io: 'output' });
+  const operation = selectObjectBranch(union, 'type', input.type);
+  if (!isRecord(operation.properties)) {
+    throw new Error('Canonical operation schema has no properties.');
+  }
+  const target = selectObjectBranch(
+    operation.properties.target,
+    'kind',
+    input.targetKind,
+  );
+  if (input.targetKind === 'SEMANTIC' && input.semanticKind !== undefined) {
+    if (!isRecord(target.properties)) {
+      throw new Error('Canonical semantic target schema has no properties.');
+    }
+    target.properties.trigger = selectObjectBranch(
+      target.properties.trigger,
+      'kind',
+      input.semanticKind,
+    );
+  }
+  operation.properties.target = target;
+  return adaptSchema(operation) as Record<string, unknown>;
+}
+
+function groupSchema(group: OperationSchemaGroup): Record<string, unknown> {
+  return {
+    items: exactOperationSchema(group),
+    type: 'array',
+  };
+}
+
+export function geminiCreativeDirectorStageSchema(
+  request: CreativeDirectorSchemaRequest,
+): Record<string, unknown> {
+  if (request.kind === 'INTENT') {
+    return adaptSchema(
+      z.toJSONSchema(operationIntentPlanDraftSchema, { io: 'output' }),
+    ) as Record<string, unknown>;
+  }
+  if (request.kind === 'OPERATION') {
+    return exactOperationSchema(request);
+  }
+  return {
+    additionalProperties: false,
+    properties: {
+      groups: {
+        additionalProperties: false,
+        properties: Object.fromEntries(
+          request.groups.map((group) => [group.key, groupSchema(group)]),
+        ),
+        required: request.groups.map((group) => group.key),
+        type: 'object',
+      },
+    },
+    required: ['groups'],
+    type: 'object',
+  };
+}
+
 export interface GeminiCreativeDirectorProviderOptions {
   readonly apiKey: string;
   readonly model?: string;
@@ -169,7 +270,9 @@ interface InteractionResponse {
   };
 }
 
-export class GeminiCreativeDirectorProvider implements CreativeDirectorProvider {
+export class GeminiCreativeDirectorProvider
+  implements CreativeDirectorProvider, StagedCreativeDirectorProvider
+{
   private readonly fetchImplementation: typeof fetch;
 
   public constructor(
@@ -180,6 +283,28 @@ export class GeminiCreativeDirectorProvider implements CreativeDirectorProvider 
 
   public async generate(
     request: CreativeDirectorProviderRequest,
+  ): Promise<CreativeDirectorProviderResponse> {
+    return this.execute(
+      creativeDirectorUserPrompt(request.input),
+      geminiCreativeDirectorSchema(),
+      request.systemPrompt,
+    );
+  }
+
+  public async generateStage(
+    request: StagedCreativeDirectorProviderRequest,
+  ): Promise<CreativeDirectorProviderResponse> {
+    return this.execute(
+      request.input,
+      geminiCreativeDirectorStageSchema(request.schema),
+      request.systemPrompt,
+    );
+  }
+
+  private async execute(
+    input: string,
+    schema: Record<string, unknown>,
+    systemPrompt: string,
   ): Promise<CreativeDirectorProviderResponse> {
     const model = this.options.model ?? defaultGeminiCreativeDirectorModel;
     const startedAt = Date.now();
@@ -194,14 +319,14 @@ export class GeminiCreativeDirectorProvider implements CreativeDirectorProvider 
         this.options.baseUrl ?? defaultBaseUrl,
         {
           body: JSON.stringify({
-            input: creativeDirectorUserPrompt(request.input),
+            input,
             model,
             response_format: {
               mime_type: 'application/json',
-              schema: geminiCreativeDirectorSchema(),
+              schema,
               type: 'text',
             },
-            system_instruction: request.systemPrompt,
+            system_instruction: systemPrompt,
           }),
           headers: {
             'Api-Revision': geminiApiRevision,

@@ -267,6 +267,7 @@ model AiRun {
   mediaAssetId                      String?          @map("media_asset_id") @db.Uuid
   mediaJobId                        String?          @map("media_job_id") @db.Uuid
   operation                         AiOperation
+  stage                             String           @default("LEGACY") @db.VarChar(32)
   provider                          String           @db.VarChar(32)
   model                             String           @db.VarChar(100)
   status                            AiRunStatus
@@ -302,6 +303,7 @@ model AiRun {
   @@index([organizationId, createdAt])
   @@index([projectId, createdAt])
   @@index([operation, provider, model, createdAt])
+  @@index([operation, stage, createdAt])
   @@map("ai_runs")
 }
 
