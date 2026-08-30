@@ -113,6 +113,29 @@ export const contentIntelligenceEnvironmentSchema =
       }
     });
 
+export const creativeDirectorEnvironmentSchema = z
+  .object({
+    CREATIVE_DIRECTOR_MODEL: z.string().trim().min(1).optional(),
+    CREATIVE_DIRECTOR_PROVIDER: z.literal('gemini').default('gemini'),
+    CREATIVE_DIRECTOR_TIMEOUT_MS: z.coerce
+      .number()
+      .int()
+      .min(1_000)
+      .max(1_800_000)
+      .default(300_000),
+    GEMINI_API_KEY: z.string().trim().min(20).optional(),
+  })
+  .superRefine((environment, context) => {
+    if (environment.GEMINI_API_KEY === undefined) {
+      context.addIssue({
+        code: 'custom',
+        message:
+          'GEMINI_API_KEY is required when CREATIVE_DIRECTOR_PROVIDER is "gemini".',
+        path: ['GEMINI_API_KEY'],
+      });
+    }
+  });
+
 /**
  * Server-only configuration for the background worker. The Supabase secret key
  * bypasses Storage row-level security, so it must never reach the browser: the
@@ -224,6 +247,9 @@ export type ContentIntelligenceJobEnvironment = z.infer<
 export type ContentIntelligenceEnvironment = z.infer<
   typeof contentIntelligenceEnvironmentSchema
 >;
+export type CreativeDirectorEnvironment = z.infer<
+  typeof creativeDirectorEnvironmentSchema
+>;
 
 export function parseApiEnvironment(
   source: Record<string, string | undefined>,
@@ -295,6 +321,12 @@ export function parseContentIntelligenceEnvironment(
   source: Record<string, string | undefined>,
 ): ContentIntelligenceEnvironment {
   return contentIntelligenceEnvironmentSchema.parse(source);
+}
+
+export function parseCreativeDirectorEnvironment(
+  source: Record<string, string | undefined>,
+): CreativeDirectorEnvironment {
+  return creativeDirectorEnvironmentSchema.parse(source);
 }
 
 export interface RedisConnectionOptions {

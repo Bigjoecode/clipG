@@ -5,6 +5,7 @@ import {
   parseAuthEnvironment,
   parseContentIntelligenceEnvironment,
   parseContentIntelligenceJobEnvironment,
+  parseCreativeDirectorEnvironment,
   parseDatabaseEnvironment,
   parseStorageEnvironment,
   parseTranscriptionEnvironment,
@@ -179,6 +180,20 @@ describe('environment validation', () => {
     expect(parseContentIntelligenceJobEnvironment({})).toEqual({
       CONTENT_INTELLIGENCE_ATTEMPTS: 3,
       CONTENT_INTELLIGENCE_CONCURRENCY: 1,
+    });
+  });
+
+  it('defaults the Creative Director to Gemini 3.6 configuration without requiring OpenAI', () => {
+    expect(() => parseCreativeDirectorEnvironment({})).toThrow();
+    expect(
+      parseCreativeDirectorEnvironment({
+        GEMINI_API_KEY: 'gemini-test-creative-director-key',
+      }),
+    ).toEqual({
+      CREATIVE_DIRECTOR_MODEL: undefined,
+      CREATIVE_DIRECTOR_PROVIDER: 'gemini',
+      CREATIVE_DIRECTOR_TIMEOUT_MS: 300_000,
+      GEMINI_API_KEY: 'gemini-test-creative-director-key',
     });
   });
 });

@@ -119,6 +119,42 @@ export interface ImageGenerationProvider {
 }
 
 export {
+  CreativeDirector,
+  CreativeDirectorProviderError,
+  creativeDirectorAssetSchema,
+  creativeDirectorAutonomyModes,
+  creativeDirectorInputSchema,
+  creativeDirectorModelOutputSchema,
+  creativeDirectorUserPrompt,
+  creativeDirectorValidationStatuses,
+  parseCreativeDirectorOutput,
+  referenceStyleProfileSchema,
+  unresolvedReferenceSchema,
+} from './creative-director.js';
+export type {
+  CreativeDirectorAsset,
+  CreativeDirectorInput,
+  CreativeDirectorOptions,
+  CreativeDirectorOutput,
+  CreativeDirectorProvider,
+  CreativeDirectorProviderRequest,
+  CreativeDirectorProviderResponse,
+  CreativeDirectorRequestContext,
+  ReferenceStyleProfile,
+} from './creative-director.js';
+export {
+  defaultGeminiCreativeDirectorModel,
+  GeminiCreativeDirectorProvider,
+  geminiCreativeDirectorSchema,
+} from './gemini-creative-director.js';
+export type { GeminiCreativeDirectorProviderOptions } from './gemini-creative-director.js';
+export {
+  creativeDirectorEvaluationDimensions,
+  creativeDirectorEvaluationFixtures,
+} from './creative-director-evaluations.js';
+export type { CreativeDirectorEvaluationFixture } from './creative-director-evaluations.js';
+
+export {
   OpenAITranscriptionProvider,
   TranscriptionProviderError,
 } from './openai-transcription.js';

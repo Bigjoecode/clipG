@@ -1,6 +1,7 @@
 import type { AiUsage } from './usage.js';
 
-export type AiOperation = 'CONTENT_INTELLIGENCE' | 'TRANSCRIPTION';
+export type AiOperation =
+  'CONTENT_INTELLIGENCE' | 'CREATIVE_DIRECTOR' | 'TRANSCRIPTION';
 
 export interface AiPricingSnapshot {
   readonly version: string;
@@ -55,6 +56,20 @@ const pricingCatalog: readonly PricingEntry[] = [
     inputMicrosPerMillionTokens: 750_000,
     model: 'gemini-3.6-flash',
     operation: 'CONTENT_INTELLIGENCE',
+    outputMicrosPerMillionTokens: 3_750_000,
+    provider: 'gemini',
+    version: 'gemini-2026-08-29',
+  },
+  {
+    audioMicrosPerMinute: null,
+    cachedInputMicrosPerMillionTokens: 75_000,
+    cacheWriteMicrosPerMillionTokens: null,
+    effectiveFrom: '2026-08-29',
+    effectiveThrough: '2026-12-31',
+    sourceUrl: 'https://ai.google.dev/gemini-api/docs/pricing',
+    inputMicrosPerMillionTokens: 750_000,
+    model: 'gemini-3.6-flash',
+    operation: 'CREATIVE_DIRECTOR',
     outputMicrosPerMillionTokens: 3_750_000,
     provider: 'gemini',
     version: 'gemini-2026-08-29',

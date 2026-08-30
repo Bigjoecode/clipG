@@ -155,7 +155,13 @@ Schema validation and transcript grounding are shared by every provider in `pars
 
 ### AI usage ledger and pricing
 
-One immutable `AiRun` is appended for every actual external transcription or content-intelligence attempt, including each BullMQ retry. Pre-provider validation failures create no run because no vendor request occurred. A fresh/idempotently cached analysis also creates no run. Each row records tenant/project/job context, operation, provider/model, normalized token and audio usage, latency, provider request id, retry attempt, outcome, and normalized error category. Secrets, full provider responses, prompts, and raw transcripts are never written to this ledger.
+One immutable `AiRun` is appended for every actual external transcription, content-intelligence, or Creative Director attempt, including each worker retry. Pre-provider validation failures create no run because no vendor request occurred. A fresh/idempotently cached analysis also creates no run. Each row records tenant/project/job context, operation, provider/model, normalized token and audio usage, latency, provider request id, retry attempt, outcome, and normalized error category. Secrets, full provider responses, prompts, and raw transcripts are never written to this ledger.
+
+### Creative Director
+
+Task 010 adds the provider-neutral Creative Director between existing evidence and the Editing Language. It accepts current user direction plus optional transcript, Content Intelligence, available assets, platform constraints, preferences, Brand DNA, reference-style characteristics, and revision context. The provider returns a schema-constrained candidate, but only deterministic semantic grounding and canonical `validateEditPlan()` can make it trusted.
+
+The priority order is system/platform, current user, project, Brand DNA, reference style, creator preferences, then defaults. Semantic ambiguity remains structured and unresolved. Original `SOURCE_MEDIA` identity and duration stay authoritative, and no renderer technology is visible to the model or domain contract. See [creative-director.md](creative-director.md).
 
 Pricing is a versioned code catalog expressed in integer micro-dollars. The selected catalog version, effective date, and all component rates are copied onto the run with the estimate, so later catalog edits cannot rewrite historical math. `actualCostMicros` is separate and remains null until a provider invoice or billing feed supplies it. An unknown or unapproved provider/model price produces a null estimate rather than a fabricated value. Indexes support bounded aggregation by organization, project, operation, provider, model, and date; `aggregateAiUsage` provides the deterministic rollup used by a future usage API. This is accounting infrastructure, not subscription enforcement.
 

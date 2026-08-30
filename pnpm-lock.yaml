@@ -221,6 +221,9 @@ importers:
       '@anthropic-ai/sdk':
         specifier: ^0.122.0
         version: 0.122.0(zod@4.4.3)
+      '@clipgenius/editing-language':
+        specifier: workspace:*
+        version: link:../editing-language
       openai:
         specifier: 7.8.0
         version: 7.8.0(undici@8.10.0)(zod@4.4.3)

@@ -40,6 +40,7 @@ enum MediaJobType {
   MEDIA_PROBE          @map("media_probe")
   TRANSCRIPTION        @map("transcription")
   CONTENT_INTELLIGENCE @map("content_intelligence")
+  CREATIVE_DIRECTOR    @map("creative_director")
 
   @@map("media_job_type")
 }
@@ -79,6 +80,7 @@ enum MediaJobStatus {
 enum AiOperation {
   TRANSCRIPTION        @map("transcription")
   CONTENT_INTELLIGENCE @map("content_intelligence")
+  CREATIVE_DIRECTOR    @map("creative_director")
 
   @@map("ai_operation")
 }

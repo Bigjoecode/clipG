@@ -102,6 +102,7 @@ export const mediaJobTypes = [
   'MEDIA_PROBE',
   'TRANSCRIPTION',
   'CONTENT_INTELLIGENCE',
+  'CREATIVE_DIRECTOR',
 ] as const;
 export const mediaJobStatuses = [
   'QUEUED',

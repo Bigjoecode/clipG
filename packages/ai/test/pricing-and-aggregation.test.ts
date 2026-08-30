@@ -38,6 +38,21 @@ describe('AI pricing', () => {
     });
   });
 
+  it('uses the same versioned Gemini rate for Creative Director attempts', () => {
+    const result = estimateAiCost({
+      model: 'gemini-3.6-flash',
+      operation: 'CREATIVE_DIRECTOR',
+      provider: 'gemini',
+      usage: {
+        ...emptyAiUsage(200),
+        inputTokens: 10_000,
+        outputTokens: 2_000,
+      },
+    });
+    expect(result.estimatedCostMicros).toBe(15_000n);
+    expect(result.pricing?.version).toBe('gemini-2026-08-29');
+  });
+
   it('does not fabricate a cost for an unapproved provider/model price', () => {
     expect(
       estimateAiCost({
