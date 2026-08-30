@@ -14,15 +14,117 @@ import { emptyAiUsage, finiteUsageCount, type AiUsage } from './usage.js';
 const defaultBaseUrl =
   'https://generativelanguage.googleapis.com/v1beta/interactions';
 export const defaultGeminiCreativeDirectorModel = 'gemini-3.6-flash';
-const unsupportedSchemaKeywords = new Set(['minItems', 'maxItems']);
+const unsupportedSchemaKeywords = new Set(['default', 'minItems', 'maxItems']);
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function singletonValue(schema: Record<string, unknown>): unknown {
+  if ('const' in schema) {
+    return schema.const;
+  }
+  return Array.isArray(schema.enum) && schema.enum.length === 1
+    ? schema.enum[0]
+    : undefined;
+}
+
+function mergePropertySchemas(
+  schemas: readonly Record<string, unknown>[],
+  property: string,
+): Record<string, unknown> {
+  const unique = new Map(
+    schemas.map((schema) => [JSON.stringify(schema), schema] as const),
+  );
+  if (unique.size === 1) {
+    return schemas[0] ?? {};
+  }
+
+  const values = schemas.map(singletonValue);
+  if (values.every((value) => value !== undefined)) {
+    const types = new Set(schemas.map((schema) => schema.type));
+    return {
+      ...(types.size === 1 && schemas[0]?.type !== undefined
+        ? { type: schemas[0].type }
+        : {}),
+      enum: [...new Set(values)],
+    };
+  }
+
+  throw new Error(
+    `Gemini schema adapter cannot safely flatten property "${property}".`,
+  );
+}
+
+function flattenObjectUnion(
+  branches: readonly Record<string, unknown>[],
+): Record<string, unknown> {
+  const properties = new Map<string, Record<string, unknown>[]>();
+  const requiredSets = branches.map(
+    (branch) =>
+      new Set(
+        Array.isArray(branch.required)
+          ? branch.required.filter(
+              (value): value is string => typeof value === 'string',
+            )
+          : [],
+      ),
+  );
+
+  for (const branch of branches) {
+    if (!isRecord(branch.properties)) {
+      throw new Error(
+        'Gemini schema adapter can flatten only object unions with properties.',
+      );
+    }
+    for (const [name, schema] of Object.entries(branch.properties)) {
+      if (!isRecord(schema)) {
+        throw new Error(
+          `Gemini schema adapter found an invalid schema for "${name}".`,
+        );
+      }
+      properties.set(name, [...(properties.get(name) ?? []), schema]);
+    }
+  }
+
+  const mergedProperties = Object.fromEntries(
+    [...properties.entries()].map(([name, schemas]) => [
+      name,
+      mergePropertySchemas(schemas, name),
+    ]),
+  );
+  const required = [...(requiredSets[0] ?? [])].filter((name) =>
+    requiredSets.every((set) => set.has(name)),
+  );
+
+  return {
+    additionalProperties: false,
+    properties: mergedProperties,
+    ...(required.length === 0 ? {} : { required }),
+    type: 'object',
+  };
+}
 
 function adaptSchema(node: unknown): unknown {
   if (Array.isArray(node)) {
     return node.map(adaptSchema);
   }
-  if (node === null || typeof node !== 'object') {
+  if (!isRecord(node)) {
     return node;
   }
+
+  if (Array.isArray(node.oneOf)) {
+    const branches = node.oneOf.map(adaptSchema);
+    if (
+      branches.every(
+        (branch): branch is Record<string, unknown> =>
+          isRecord(branch) && branch.type === 'object',
+      )
+    ) {
+      return flattenObjectUnion(branches);
+    }
+  }
+
   const output: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(node)) {
     if (key !== '$schema' && !unsupportedSchemaKeywords.has(key)) {

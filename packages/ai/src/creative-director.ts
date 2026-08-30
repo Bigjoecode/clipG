@@ -2,7 +2,9 @@ import { z } from 'zod';
 
 import {
   editOperationSchema,
+  editOperationTypes,
   editPlanSchema,
+  editPlanSchemaVersion,
   editPlatforms,
   validateEditPlan,
   type AssetContext,
@@ -397,6 +399,65 @@ function assetContext(input: CreativeDirectorInput): AssetContext {
   };
 }
 
+/**
+ * Removes fields the canonical schema does not recognise, reporting each one.
+ *
+ * Providers are sent a flattened response schema: the Editing Language's
+ * operation and target unions are discriminated, but a structured-output schema
+ * that preserves those branches is either rejected or not enforced, so every
+ * variant's fields are merged into one object. That flattening loses mutual
+ * exclusivity, and models reliably take the invitation — attaching
+ * `keepSourceAudio` to an INSERT_ASSET, or a `range` to a SEMANTIC target.
+ * Live runs failed this way every time before this step existed.
+ *
+ * The offending keys come from Zod's own `unrecognized_keys` issues rather than
+ * a hand-maintained list, so this cannot drift from the canonical schema. Only
+ * keys the canonical schema rejects outright are removed, nothing is rewritten,
+ * and every removal is surfaced as a warning — a pruned field means the model
+ * tried to express something the operation cannot carry, which the operator
+ * should see rather than have silently discarded.
+ */
+function pruneUnrecognizedKeys(raw: unknown): {
+  readonly value: unknown;
+  readonly removed: readonly string[];
+} {
+  const removed: string[] = [];
+  const value: unknown = structuredClone(raw);
+
+  // Each pass can expose the next layer, so iterate until clean; the bound stops
+  // a pathological response from looping.
+  for (let pass = 0; pass < 5; pass += 1) {
+    const attempt = creativeDirectorModelOutputSchema.safeParse(value);
+    if (attempt.success) {
+      break;
+    }
+    const unrecognized = attempt.error.issues.filter(
+      (issue) => issue.code === 'unrecognized_keys',
+    );
+    if (unrecognized.length === 0) {
+      break;
+    }
+    for (const issue of unrecognized) {
+      const parent = issue.path.reduce<unknown>(
+        (node, key) =>
+          node !== null && typeof node === 'object'
+            ? (node as Record<string, unknown>)[String(key)]
+            : undefined,
+        value,
+      );
+      if (parent === null || typeof parent !== 'object') {
+        continue;
+      }
+      for (const key of issue.keys) {
+        delete (parent as Record<string, unknown>)[key];
+        removed.push([...issue.path, key].join('.'));
+      }
+    }
+  }
+
+  return { removed, value };
+}
+
 export function parseCreativeDirectorOutput(
   raw: unknown,
   input: CreativeDirectorInput,
@@ -406,10 +467,15 @@ export function parseCreativeDirectorOutput(
     readonly usage: AiUsage;
   },
 ): CreativeDirectorOutput {
-  const parsed = creativeDirectorModelOutputSchema.safeParse(raw);
+  const pruned = pruneUnrecognizedKeys(raw);
+  const parsed = creativeDirectorModelOutputSchema.safeParse(pruned.value);
   if (!parsed.success) {
+    const issues = parsed.error.issues
+      .slice(0, 10)
+      .map((issue) => `${issue.path.join('.') || 'response'}: ${issue.message}`)
+      .join('; ');
     throw new CreativeDirectorProviderError(
-      'The model returned creative direction that did not match the required schema.',
+      `The model returned creative direction that did not match the required schema. ${issues}`,
       true,
       'INVALID_RESPONSE',
       source.usage,
@@ -523,7 +589,15 @@ export function parseCreativeDirectorOutput(
       validation.renderReady && unresolvedReferences.length === 0
         ? 'VALID'
         : 'UNRESOLVED',
-    warnings: parsed.data.warnings,
+    warnings: [
+      ...parsed.data.warnings,
+      // A pruned field means the model tried to express something the operation
+      // cannot carry. Surfacing it keeps the normalization visible.
+      ...pruned.removed.map(
+        (path) =>
+          `Ignored ${path}: the field is not part of that operation's schema.`,
+      ),
+    ].slice(0, 30),
   };
 }
 
@@ -545,6 +619,19 @@ export function creativeDirectorUserPrompt(
       referenceStyle: input.referenceStyle,
       creatorPreferences: input.creatorPreferences,
       previousRevisionContext: input.previousInstructions,
+    },
+    editingLanguageContract: {
+      operationTypes: editOperationTypes,
+      schemaVersion: editPlanSchemaVersion,
+      semanticTriggerKinds: ['PHRASE', 'TOPIC', 'SPEAKER', 'EVENT'],
+      targetKinds: ['TIME', 'SEMANTIC'],
+      unsupportedAliases: [
+        'CUT',
+        'SPLIT',
+        'TRIM',
+        'EXPLICIT_RANGE',
+        'TRIGGER_TARGET',
+      ],
     },
     outputPlatform: input.platform,
     sourceMedia: input.sourceMedia,

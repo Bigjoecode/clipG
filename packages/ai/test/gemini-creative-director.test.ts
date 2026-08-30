@@ -52,8 +52,14 @@ describe('Gemini Creative Director provider', () => {
     const serialized = JSON.stringify(geminiCreativeDirectorSchema());
     expect(serialized).not.toContain('minItems');
     expect(serialized).not.toContain('maxItems');
+    expect(serialized).not.toContain('oneOf');
     expect(serialized).toContain('schemaVersion');
     expect(serialized).toContain('SOURCE_MEDIA');
+    expect(serialized).toContain(
+      '"enum":["REMOVE","KEEP","SPEED","INSERT_ASSET","REPLACE_ASSET","ZOOM","PAN","CROP","REFRAME","TRANSITION","CAPTION","TEXT","MUSIC","AUDIO_LEVEL"]',
+    );
+    expect(serialized).toContain('"enum":["TIME","SEMANTIC"]');
+    expect(serialized).toContain('"enum":["PHRASE","TOPIC","SPEAKER","EVENT"]');
   });
 
   it('constructs a pinned Interactions request without putting the key in the URL', async () => {
@@ -96,6 +102,10 @@ describe('Gemini Creative Director provider', () => {
       model: 'gemini-3.6-flash',
       system_instruction: 'system instruction',
     });
+    expect(body.input).toContain('"schemaVersion":"1.0"');
+    expect(body.input).toContain('"operationTypes":["REMOVE","KEEP"');
+    expect(body.input).toContain('"targetKinds":["TIME","SEMANTIC"]');
+    expect(body.input).toContain('"unsupportedAliases":["CUT","SPLIT"');
     expect(result.raw).toEqual(raw);
     expect(result.usage).toMatchObject({
       inputTokens: 100,

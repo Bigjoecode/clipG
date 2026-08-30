@@ -26,7 +26,7 @@ Transcript text is untrusted content. Instructions inside it remain quoted evide
 
 ## Provider boundary
 
-`CreativeDirector` depends on `CreativeDirectorProvider`, not Gemini. The current adapter is `GeminiCreativeDirectorProvider`, with `gemini-3.6-flash` as its operational default. Gemini uses the Interactions API and a JSON schema derived from the canonical response schema. Its adapter removes only provider-unsupported `minItems` and `maxItems`; complete Zod and Editing Language constraints run after the response returns. The API key is a header, never a URL parameter.
+`CreativeDirector` depends on `CreativeDirectorProvider`, not Gemini. The current adapter is `GeminiCreativeDirectorProvider`, with `gemini-3.6-flash` as its operational default. Gemini uses the Interactions API and a JSON schema derived from the canonical response schema. Because the Interactions decoder accepts but does not enforce nested `oneOf` branches, the adapter flattens object unions into an object whose discriminants are explicit enums and whose branch-specific fields are optional. It also removes provider-unsupported `minItems` and `maxItems`, plus `default` annotations that describe canonical parsing rather than generation constraints. This is a generation aid only: complete Zod and Editing Language constraints still run after every response and fail closed. The API key is a header, never a URL parameter.
 
 No OpenAI billing or OpenAI Creative Director adapter is introduced by Task 010.
 
@@ -103,4 +103,4 @@ If reference style asks for dynamic captions but the user says “Do not animate
 
 The deterministic evaluation set contains 17 fixtures covering timestamps, assets, phrase/topic/speaker/event references, captions, visual and platform direction, autonomy, conflicts, ambiguity, missing assets, provenance, reference precedence, source preservation, and revisions. It measures instruction fidelity, timing, asset accuracy, semantic resolution, source preservation, and EditPlan validity. It is coverage, not proof of broad model quality.
 
-Normal tests mock providers and make no paid calls. Task 010 does not add a public queue endpoint, UI, EditPlan persistence, reference retrieval, asset generation, or rendering. Those require later product decisions and milestones.
+Normal tests mock providers and make no paid calls. An opt-in live Gemini test proves the real decoder can produce a canonically valid EditPlan. Run it with `CLIPGENIUS_LIVE_CREATIVE_DIRECTOR=1` and `GEMINI_API_KEY`; it remains skipped in normal validation. Task 010 does not add a public queue endpoint, UI, EditPlan persistence, reference retrieval, asset generation, or rendering. Those require later product decisions and milestones.

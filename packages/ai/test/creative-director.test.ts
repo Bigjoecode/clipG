@@ -123,6 +123,69 @@ describe('Creative Director contracts', () => {
     ).toThrow();
   });
 
+  it('drops a field belonging to a different operation type and warns', () => {
+    // Providers receive a flattened schema, so a model can attach REPLACE_ASSET's
+    // keepSourceAudio to an INSERT_ASSET. Live runs failed exactly this way.
+    const output = parseCreativeDirectorOutput(
+      modelOutput(
+        plan({
+          asset: { assetId: ASSET_ID, source: 'USER_ASSET' },
+          fit: 'COVER',
+          id: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee1',
+          keepSourceAudio: true,
+          opacity: 1,
+          target: { kind: 'TIME', range: { endMs: 25_000, startMs: 20_000 } },
+          type: 'INSERT_ASSET',
+        }),
+      ),
+      input(),
+      { model: 'gemini-3.6-flash', provider: 'gemini', usage },
+    );
+
+    expect(output.validationStatus).toBe('VALID');
+    expect(output.editPlan.operations[0]?.type).toBe('INSERT_ASSET');
+    expect(
+      output.editPlan.operations[0] as Record<string, unknown>,
+    ).not.toHaveProperty('keepSourceAudio');
+    expect(output.warnings.some((w) => w.includes('keepSourceAudio'))).toBe(
+      true,
+    );
+  });
+
+  it('drops a range attached to a semantic target and warns', () => {
+    const output = parseCreativeDirectorOutput(
+      modelOutput(
+        plan({
+          id: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee2',
+          target: {
+            kind: 'SEMANTIC',
+            leadMs: 0,
+            occurrence: { select: 'FIRST' },
+            range: { endMs: 25_000, startMs: 20_000 },
+            trailMs: 0,
+            trigger: { kind: 'PHRASE', match: 'CONTAINS', phrase: 'apostles' },
+          },
+          type: 'REMOVE',
+        }),
+      ),
+      input(),
+      { model: 'gemini-3.6-flash', provider: 'gemini', usage },
+    );
+
+    expect(output.warnings.some((w) => w.includes('range'))).toBe(true);
+    expect(output.editPlan.operations).toHaveLength(1);
+  });
+
+  it('still rejects output that is wrong beyond stray keys', () => {
+    expect(() =>
+      parseCreativeDirectorOutput(
+        modelOutput(plan({ ...remove, type: 'TELEPORT' })),
+        input(),
+        { model: 'gemini-3.6-flash', provider: 'gemini', usage },
+      ),
+    ).toThrow();
+  });
+
   it('produces a canonically validated timestamp-accurate EditPlan', () => {
     const output = parseCreativeDirectorOutput(
       modelOutput(plan(remove)),
