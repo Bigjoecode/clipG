@@ -51,6 +51,12 @@ function adaptSchemaForGemini(node: unknown): unknown {
   const adapted: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(node)) {
     // `$schema` is JSON Schema metadata rather than a constraint.
+    if (key === 'const') {
+      // Gemini accepts `const` but does not enforce it; a one-value `enum`
+      // expresses the same constraint and is enforced.
+      adapted.enum = [value];
+      continue;
+    }
     if (key === '$schema' || unsupportedSchemaKeywords.includes(key)) {
       continue;
     }

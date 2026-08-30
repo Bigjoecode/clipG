@@ -62,6 +62,18 @@ describe('Gemini Creative Director provider', () => {
     expect(serialized).toContain('"enum":["PHRASE","TOPIC","SPEAKER","EVENT"]');
   });
 
+  it('expresses every literal as an enforced enum rather than const', () => {
+    const serialized = JSON.stringify(geminiCreativeDirectorSchema());
+
+    // Live probing established that Gemini accepts `const` but does not enforce
+    // it, so a literal emitted that way lets the model substitute its own
+    // value. `enum` is enforced. Without this, schemaVersion and the
+    // SOURCE_MEDIA provenance literal are unconstrained.
+    expect(serialized).not.toContain('"const"');
+    expect(serialized).toContain('"enum":["1.0"]');
+    expect(serialized).toContain('"enum":["SOURCE_MEDIA"]');
+  });
+
   it('constructs a pinned Interactions request without putting the key in the URL', async () => {
     const fetchImplementation = vi.fn().mockResolvedValue(
       response({

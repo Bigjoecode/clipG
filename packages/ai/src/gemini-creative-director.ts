@@ -127,7 +127,13 @@ function adaptSchema(node: unknown): unknown {
 
   const output: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(node)) {
-    if (key !== '$schema' && !unsupportedSchemaKeywords.has(key)) {
+    if (key === 'const') {
+      // Gemini accepts `const` but does not enforce it, so a literal emitted
+      // this way lets the model substitute its own value — that is how earlier
+      // runs produced schemaVersion values other than "1.0". A one-value `enum`
+      // expresses the same constraint and *is* enforced.
+      output.enum = [value];
+    } else if (key !== '$schema' && !unsupportedSchemaKeywords.has(key)) {
       output[key] = adaptSchema(value);
     }
   }
